@@ -1,0 +1,139 @@
+# ==============================================================================
+# ForensiWeb — Container Orchestration (docker-compose.yml)
+# ==============================================================================
+# Adheres to docs/architecture.md (Sections 22, 23, 24) and docs/threat-model.md
+# Enforces strict network isolation between the forensic platform and the lab target.
+# All host ports are bound exclusively to 127.0.0.1 (localhost).
+# ==============================================================================
+
+services:
+  # ----------------------------------------------------------------------------
+  # 1. Forensic Metadata Database (PostgreSQL 16)
+  # ----------------------------------------------------------------------------
+  postgres:
+    image: postgres:16-alpine
+    container_name: forensiweb-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-forensiweb}
+      POSTGRES_USER: ${POSTGRES_USER:-forensiweb_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-insecure_dev_password_change_in_prod}
+    ports:
+      - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - forensiweb-mgmt-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-forensiweb_user} -d ${POSTGRES_DB:-forensiweb}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # ----------------------------------------------------------------------------
+  # 2. ForensiWeb Backend API (FastAPI)
+  # ----------------------------------------------------------------------------
+  api:
+    build:
+      context: ./apps/api
+      dockerfile: Dockerfile
+    container_name: forensiweb-api
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      ENVIRONMENT: ${ENVIRONMENT:-development}
+      DEBUG: ${DEBUG:-true}
+      API_HOST: 0.0.0.0
+      API_PORT: 8000
+      API_PREFIX: ${API_PREFIX:-/api/v1}
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: ${POSTGRES_DB:-forensiweb}
+      POSTGRES_USER: ${POSTGRES_USER:-forensiweb_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-insecure_dev_password_change_in_prod}
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-forensiweb_user}:${POSTGRES_PASSWORD:-insecure_dev_password_change_in_prod}@postgres:5432/${POSTGRES_DB:-forensiweb}
+      DATABASE_URL_SYNC: postgresql://${POSTGRES_USER:-forensiweb_user}:${POSTGRES_PASSWORD:-insecure_dev_password_change_in_prod}@postgres:5432/${POSTGRES_DB:-forensiweb}
+      SECRET_KEY: ${SECRET_KEY:-change-me-to-a-secure-random-secret-key-in-production-only-for-dev}
+      JWT_ALGORITHM: ${JWT_ALGORITHM:-HS256}
+      EVIDENCE_ROOT_DIR: /app/data/evidence
+      REPORTS_DIR: /app/data/reports
+    ports:
+      - "127.0.0.1:${API_PORT:-8000}:8000"
+    volumes:
+      - ./data/evidence:/app/data/evidence:ro
+      - ./data/reports:/app/data/reports
+    networks:
+      - forensiweb-mgmt-net
+
+  # ----------------------------------------------------------------------------
+  # 3. ForensiWeb Analyst Dashboard (React / TypeScript)
+  # ----------------------------------------------------------------------------
+  frontend:
+    build:
+      context: ./apps/frontend
+      dockerfile: Dockerfile
+    container_name: forensiweb-frontend
+    restart: unless-stopped
+    depends_on:
+      - api
+    environment:
+      VITE_API_URL: http://127.0.0.1:${API_PORT:-8000}${API_PREFIX:-/api/v1}
+    ports:
+      - "127.0.0.1:${FRONTEND_PORT:-5173}:5173"
+    networks:
+      - forensiweb-mgmt-net
+
+  # ----------------------------------------------------------------------------
+  # 4. Controlled Vulnerable Web Application (Flask Lab Target)
+  # ----------------------------------------------------------------------------
+  vulnerable-app:
+    build:
+      context: ./apps/vulnerable-web-app
+      dockerfile: Dockerfile
+    container_name: forensiweb-vulnerable-app
+    restart: unless-stopped
+    # Dropped capabilities to prevent kernel-level escape
+    cap_drop:
+      - ALL
+    # Strict resource bounds
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 512M
+    environment:
+      FLASK_ENV: development
+      FLASK_APP: app.routes:app
+      PORT: 5000
+    ports:
+      # Bound strictly to localhost; never exposed publicly
+      - "127.0.0.1:${LAB_VULN_APP_PORT:-5000}:5000"
+    networks:
+      # Connected exclusively to isolated internal lab network
+      - forensiweb-lab-net
+
+# ==============================================================================
+# Isolated Networks Architecture
+# ==============================================================================
+networks:
+  # Management network for ForensiWeb platform components
+  forensiweb-mgmt-net:
+    name: forensiweb-mgmt-net
+    driver: bridge
+    internal: false
+
+  # Strict non-egress isolated network for vulnerable laboratory targets
+  # internal: true blocks all external outbound internet connectivity
+  forensiweb-lab-net:
+    name: forensiweb-lab-net
+    driver: bridge
+    internal: true
+
+# ==============================================================================
+# Persistent Volumes
+# ==============================================================================
+volumes:
+  postgres_data:
+    name: forensiweb-postgres-data

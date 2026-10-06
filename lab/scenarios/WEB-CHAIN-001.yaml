@@ -1,0 +1,185 @@
+# ==============================================================================
+# ForensiWeb — Scenario Configuration: WEB-CHAIN-001
+# ==============================================================================
+# Adheres to task.md (Section 12 & 13) and threat-model.md (Section 4)
+# Multi-stage chained attack scenario: LFI -> Log Poisoning -> RCE -> Web Shell -> PATH PrivEsc
+# ==============================================================================
+
+scenario_id: "WEB-CHAIN-001"
+name: "Controlled LFI-to-Privilege-Escalation Attack Chain"
+version: "1.0.0"
+author: "ForensiWeb Research Team"
+
+purpose: >
+  Demonstrate and evaluate digital forensic telemetry capture, event normalization,
+  and timeline correlation for a multi-stage web application exploitation chain
+  progressing from unauthenticated Local File Inclusion (LFI) to root privilege escalation
+  within a strictly contained laboratory environment.
+
+preconditions:
+  - "Target vulnerable web application is running and accessible on 127.0.0.1:5000."
+  - "Container network is attached exclusively to isolated internal network (internal: true)."
+  - "Baseline fixture documents (welcome.txt, about.txt) exist in lab/fixtures/docs/."
+  - "Access and audit log fixtures are clean or reset to baseline."
+  - "No active external internet outbound connectivity is permitted."
+
+stages:
+  - id: "S1"
+    name: "LFI Reconnaissance & Path Traversal"
+    purpose: "Attacker probes document viewing parameter for path traversal to discover system files and web logs."
+    method: "GET"
+    endpoint: "/document?file=../../logs/access.log"
+    expected_status: 200
+    expected_behavior: >
+      Target server resolves the relative traversal path and returns the raw access log content,
+      confirming file inclusion vulnerability. Attempting traversal outside lab scope triggers containment guard (404).
+    expected_evidence_sources:
+      - "Apache Combined Access Log (access.log)"
+    expected_artifacts:
+      - id: "ART-01"
+        pattern: "GET /document?file=../"
+        file: "lab/fixtures/logs/access.log"
+
+  - id: "S2"
+    name: "Controlled Log Poisoning"
+    purpose: "Attacker injects an executable payload token into HTTP User-Agent header targeting the access log."
+    method: "GET"
+    endpoint: "/document?file=welcome.txt"
+    headers:
+      User-Agent: "Mozilla/5.0 (SIMULATED_POISON_PAYLOAD; ForensicTestToken)"
+    expected_status: 200
+    expected_behavior: >
+      Web server records the raw User-Agent header into access.log without sanitization,
+      positioning the simulated payload for subsequent execution via LFI.
+    expected_evidence_sources:
+      - "Apache Combined Access Log (access.log)"
+    expected_artifacts:
+      - id: "ART-02"
+        pattern: "SIMULATED_POISON_PAYLOAD"
+        file: "lab/fixtures/logs/access.log"
+
+  - id: "S3"
+    name: "Remote Code Execution via Log Inclusion"
+    purpose: "Attacker executes code by requesting the poisoned access.log via the LFI parameter."
+    method: "GET"
+    endpoint: "/document?file=access.log&cmd=id"
+    expected_status: 200
+    expected_behavior: >
+      Application executes the simulated command under the unprivileged web server context (labuser, uid=1000).
+      Returns execution output banner and generates Linux auditd EXECVE record.
+    expected_evidence_sources:
+      - "Apache Combined Access Log (access.log)"
+      - "Linux auditd Event Log (audit.log)"
+    expected_artifacts:
+      - id: "ART-03"
+        pattern: "type=EXECVE .* comm=\"sh\" .* a2=\"id\""
+        file: "lab/fixtures/logs/audit.log"
+
+  - id: "S4"
+    name: "Persistent Web Shell Interaction"
+    purpose: "Attacker maintains access via simulated web shell endpoint executing system commands."
+    method: "GET"
+    endpoint: "/shell?cmd=whoami"
+    expected_status: 200
+    expected_behavior: >
+      Command is executed in unprivileged context, returned in JSON envelope, and recorded in auditd execve logs.
+    expected_evidence_sources:
+      - "Linux auditd Event Log (audit.log)"
+      - "Apache Combined Access Log (access.log)"
+    expected_artifacts:
+      - id: "ART-04"
+        pattern: "type=EXECVE .* comm=\"sh\" .* a2=\"whoami\""
+        file: "lab/fixtures/logs/audit.log"
+
+  - id: "S4b"
+    name: "Post-Exploitation Meterpreter Telemetry"
+    purpose: "Simulate post-exploitation payload stager beacon and network connection telemetry."
+    method: "POST"
+    endpoint: "/post-exploitation/meterpreter?lhost=10.0.50.5&lport=4444"
+    expected_status: 200
+    expected_behavior: >
+      Stager beacon logs network connection attempt and secondary process execution to auditd.
+    expected_evidence_sources:
+      - "Linux auditd Event Log (audit.log)"
+    expected_artifacts:
+      - id: "ART-04b"
+        pattern: "comm=\"meterpreter_mock\" .* a1=\"--stage2\""
+        file: "lab/fixtures/logs/audit.log"
+
+  - id: "S5"
+    name: "PATH Misconfiguration Privilege Escalation"
+    purpose: "Attacker exploits PATH precedence order to execute a trojanized binary under administrative context."
+    method: "POST"
+    endpoint: "/privesc/run-backup"
+    headers:
+      X-Lab-PATH: "/tmp/bin:/usr/local/bin:/usr/bin:/bin"
+    expected_status: 200
+    expected_behavior: >
+      Automated maintenance routine resolves executable from attacker-controlled directory.
+      Process executes with elevated permissions (uid=0, euid=0), recorded in Linux auditd SYSCALL records.
+    expected_evidence_sources:
+      - "Linux auditd Event Log (audit.log)"
+    expected_artifacts:
+      - id: "ART-05"
+        pattern: "type=SYSCALL .* comm=\"backup_tool\" .* uid=0 .* euid=0"
+        file: "lab/fixtures/logs/audit.log"
+
+expected_artifacts:
+  - id: "ART-01"
+    stage: "S1"
+    source: "web_access_log"
+    description: "LFI probe in access.log"
+  - id: "ART-02"
+    stage: "S2"
+    source: "web_access_log"
+    description: "Poisoned User-Agent in access.log"
+  - id: "ART-03"
+    stage: "S3"
+    source: "linux_auditd"
+    description: "Process spawn via log inclusion in audit.log"
+  - id: "ART-04"
+    stage: "S4"
+    source: "linux_auditd"
+    description: "Web shell command execution in audit.log"
+  - id: "ART-04b"
+    stage: "S4b"
+    source: "linux_auditd"
+    description: "Meterpreter beaconing telemetry in audit.log"
+  - id: "ART-05"
+    stage: "S5"
+    source: "linux_auditd"
+    description: "Elevated process execution with uid=0 in audit.log"
+
+expected_timestamps:
+  format: "ISO-8601 UTC / Apache Combined [DD/Mon/YYYY:HH:MM:SS +0000]"
+  ordering: "Strict monotonically increasing timestamp sequence matching stage order S1 -> S2 -> S3 -> S4 -> S4b -> S5"
+
+expected_evidence_sources:
+  - name: "Apache Combined Access Log"
+    path: "lab/fixtures/logs/access.log"
+    format: "combined"
+  - name: "Linux Audit Daemon Log"
+    path: "lab/fixtures/logs/audit.log"
+    format: "auditd"
+
+reset_procedure:
+  steps:
+    - "Send POST request to /api/reset endpoint on vulnerable application."
+    - "Verify access.log and audit.log are truncated to zero bytes."
+    - "Verify baseline document fixtures (welcome.txt, about.txt) are intact."
+    - "Verify /api/status reports is_poisoned=false and 0 log lines."
+
+verification_procedure:
+  steps:
+    - "Execute scripts/testing/verify_lab.py to run full health, isolation, and scenario verification."
+    - "Verify each stage S1 through S5 generates documented artifacts."
+    - "Collect evidence using lab/scripts/log_collector.py and verify cryptographic SHA-256 hashes."
+    - "Execute lab reset and verify clean return to baseline."
+
+failure_behavior:
+  - condition: "Malicious input attempts directory traversal beyond lab scope."
+    action: "Containment guard intervenes, returns HTTP 404, prevents host filesystem disclosure."
+  - condition: "Simulated exploit script attempts external outbound connection."
+    action: "Docker internal network (internal: true) blocks packet routing, causing connection timeout."
+  - condition: "Excessive memory or CPU utilization."
+    action: "Docker container resource limits enforce hard cap (512MB RAM, 1.0 CPU)."

@@ -1,0 +1,59 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "forensiweb"
+version = "0.1.0"
+description = "Forensic Analysis of Log Poisoning and Environment Variable Manipulation in Web Applications"
+readme = "README.md"
+requires-python = ">=3.12"
+license = {text = "MIT"}
+authors = [
+    {name = "ForensiWeb Research Team"}
+]
+keywords = [
+    "cybersecurity",
+    "digital-forensics",
+    "log-poisoning",
+    "privilege-escalation",
+    "incident-response",
+    "academic-research"
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "Topic :: Security",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13"
+]
+
+[tool.pytest.ini_options]
+minversion = "8.0"
+testpaths = ["tests", "apps", "packages"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = "-v --strict-markers"
+pythonpath = [
+    ".",
+    "apps/api",
+    "packages/forensic-engine",
+    "packages/detection-engine",
+    "packages/report-engine"
+]
+markers = [
+    "unit: Isolated unit tests",
+    "integration: Cross-component integration tests",
+    "e2e: End-to-end scenario tests",
+    "lab: Docker laboratory tests",
+    "regression: Bug regression tests"
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B"]
+ignore = ["E501"]

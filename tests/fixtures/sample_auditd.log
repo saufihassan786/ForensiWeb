@@ -1,0 +1,5 @@
+type=SYSCALL msg=audit(1728225065.120:101): arch=c000003e syscall=59 success=yes exit=0 a0=55f1a8b2 a1=55f1a8d0 a2=55f1a900 a3=0 items=2 ppid=1420 pid=2105 auid=1000 uid=33 gid=33 euid=33 comm="sh" exe="/bin/sh"
+type=EXECVE msg=audit(1728225065.120:101): argc=3 a0="sh" a1="-c" a2="id"
+type=PATH msg=audit(1728225065.120:101): item=0 name="/bin/sh" inode=12035 dev=08:01 mode=0100755 ouid=0 ogid=0 rdev=00:00
+type=SYSCALL msg=audit(1728225080.450:102): arch=c000003e syscall=2 success=yes exit=3 a0=7ffcd2 a1=441 a2=1b6 a3=0 items=2 ppid=2105 pid=2110 auid=1000 uid=33 gid=33 euid=33 comm="sh" exe="/bin/sh"
+type=PATH msg=audit(1728225080.450:102): item=0 name="/tmp/bin/su" inode=88421 dev=08:01 mode=0100777 ouid=33 ogid=33 rdev=00:00

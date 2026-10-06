@@ -1,0 +1,55 @@
+{
+  "scenario_id": "WEB-CHAIN-001",
+  "name": "Controlled LFI-to-Privilege-Escalation Attack Chain",
+  "version": "1.0.0",
+  "artifacts": [
+    {
+      "id": "ART-01",
+      "stage": "LFI",
+      "source": "web_access_log",
+      "file": "lab/fixtures/logs/access.log",
+      "indicators": ["GET /document?file=../", "404", "status=404"],
+      "description": "HTTP request attempting directory traversal targeting web server logs."
+    },
+    {
+      "id": "ART-02",
+      "stage": "LOG_POISONING",
+      "source": "web_access_log",
+      "file": "lab/fixtures/logs/access.log",
+      "indicators": ["SIMULATED_POISON_PAYLOAD", "User-Agent"],
+      "description": "User-Agent header injected with simulated forensic payload token."
+    },
+    {
+      "id": "ART-03",
+      "stage": "RCE",
+      "source": "linux_auditd",
+      "file": "lab/fixtures/logs/audit.log",
+      "indicators": ["type=EXECVE", "a0=\"sh\"", "a1=\"-c\""],
+      "description": "Process execution generated upon inclusion of poisoned access log."
+    },
+    {
+      "id": "ART-04",
+      "stage": "WEB_SHELL",
+      "source": "linux_auditd",
+      "file": "lab/fixtures/logs/audit.log",
+      "indicators": ["type=EXECVE", "comm=\"sh\"", "uid=1000"],
+      "description": "Interactive command execution telemetry from persistent web shell."
+    },
+    {
+      "id": "ART-04b",
+      "stage": "POST_EXPLOITATION",
+      "source": "linux_auditd",
+      "file": "lab/fixtures/logs/audit.log",
+      "indicators": ["type=EXECVE", "comm=\"meterpreter_mock\"", "a1=\"--stage2\""],
+      "description": "Controlled meterpreter post-exploitation telemetry and beaconing artifact."
+    },
+    {
+      "id": "ART-05",
+      "stage": "PRIVILEGE_ESCALATION",
+      "source": "linux_auditd",
+      "file": "lab/fixtures/logs/audit.log",
+      "indicators": ["type=SYSCALL", "comm=\"backup_tool\"", "uid=0", "euid=0"],
+      "description": "Audit record showing process execution with root privileges resulting from PATH hijacking."
+    }
+  ]
+}

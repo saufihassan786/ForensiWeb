@@ -1,0 +1,5 @@
+[2026-10-06 14:30:00,102] [INFO] [app] Application initialized in environment: testing
+[2026-10-06 14:30:10,450] [DEBUG] [app.routes] Serving route: /
+[2026-10-06 14:31:22,810] [WARNING] [app.security] Path traversal attempt detected: '../../../../etc/passwd'
+[2026-10-06 14:31:35,120] [INFO] [app.routes] Contact form request received
+[2026-10-06 14:32:05,900] [ERROR] [app.execution] Unexpected child process spawn detected from worker thread
