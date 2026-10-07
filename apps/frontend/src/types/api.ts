@@ -205,3 +205,89 @@ export interface DashboardAnalytics {
   };
   risk_summary: RiskSummary;
 }
+
+export interface SimulationStatus {
+  connected: boolean;
+  target_url: string;
+  access_log_lines: number;
+  audit_log_lines: number;
+  is_mitigated: boolean;
+  scenario: string;
+}
+
+export interface StageExecutionResult {
+  stage_id: string;
+  stage_name: string;
+  http_request: {
+    method: string;
+    url: string;
+    path: string;
+    headers: Record<string, string>;
+    payload: string;
+  };
+  http_response: {
+    status_code: number;
+    blocked: boolean;
+    body_preview: string;
+  };
+  detection: {
+    rule_id: string;
+    rule_name: string;
+    severity: string;
+    mitre_id: string;
+    mitre_technique: string;
+    attack_stage: string;
+    triggered: boolean;
+    confidence: number;
+    explanation: string;
+  };
+  remediation: string;
+  timestamp: string;
+}
+
+export interface ScenarioRunResult {
+  scenario_id: string;
+  scenario_name: string;
+  executed_at: string;
+  mitigation_mode: boolean;
+  overall_outcome: "BLOCKED" | "COMPROMISED";
+  stages_executed: number;
+  stages_blocked: number;
+  stages: StageExecutionResult[];
+  alerts: Array<{
+    id: string;
+    rule_id: string;
+    rule_name: string;
+    attack_stage: string;
+    severity: string;
+    mitre_id: string;
+    mitre_technique: string;
+    timestamp: string;
+    confidence: number;
+    evidence_source: string;
+    explanation: string;
+  }>;
+  findings: Array<{
+    id: string;
+    title: string;
+    severity: string;
+    attack_stage: string;
+    mitre_technique: string;
+    status: string;
+    recommendation: string;
+  }>;
+  timeline: Array<{
+    id: string;
+    case_id: string;
+    order_index: number;
+    timestamp: string;
+    attack_stage: string;
+    title: string;
+    summary: string;
+    classification: string;
+    confidence: number;
+    severity: string;
+  }>;
+  summary: string;
+  cryptographic_receipt: string;
+}

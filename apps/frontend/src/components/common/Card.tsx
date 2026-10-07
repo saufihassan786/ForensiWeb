@@ -8,6 +8,7 @@ export interface CardProps {
   className?: string;
   headerClassName?: string;
   glow?: "blue" | "cyan" | "violet" | "none";
+  onClick?: () => void;
 }
 
 export const Card: React.FC<CardProps> = ({
@@ -18,6 +19,7 @@ export const Card: React.FC<CardProps> = ({
   className = "",
   headerClassName = "",
   glow = "none",
+  onClick,
 }) => {
   const glowStyles = {
     blue: "hover:border-border-active hover:shadow-glow-blue",
@@ -28,6 +30,7 @@ export const Card: React.FC<CardProps> = ({
 
   return (
     <div
+      onClick={onClick}
       className={`bg-surface-primary border border-border-default rounded-card shadow-sm transition-all duration-200 overflow-hidden ${glowStyles[glow]} ${className}`}
     >
       {(title || action) && (

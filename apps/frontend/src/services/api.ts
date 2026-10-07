@@ -5,6 +5,9 @@ import {
   Finding,
   TimelineEntry,
   TraceabilityReport,
+  SimulationStatus,
+  StageExecutionResult,
+  ScenarioRunResult,
 } from "@/types/api";
 
 const API_BASE = "/api/v1";
@@ -408,5 +411,66 @@ export const apiService = {
         calculated_at: new Date().toISOString(),
       },
     };
+  },
+
+  async getSimulationStatus(): Promise<SimulationStatus> {
+    try {
+      const res = await fetch(`${API_BASE}/simulation/status`);
+      if (res.ok) {
+        return await res.json();
+      }
+    } catch (_) {}
+    return {
+      connected: false,
+      target_url: "http://127.0.0.1:5000",
+      access_log_lines: 0,
+      audit_log_lines: 0,
+      is_mitigated: false,
+      scenario: "WEB-CHAIN-001 (Autonomous)",
+    };
+  },
+
+  async runFullSimulation(mitigated: boolean = false): Promise<ScenarioRunResult> {
+    const res = await fetch(`${API_BASE}/simulation/run`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ mitigated }),
+    });
+    if (!res.ok) {
+      throw new Error(`Simulation failed with HTTP status ${res.status}`);
+    }
+    return await res.json();
+  },
+
+  async runStageSimulation(stageId: string, customPayload?: string): Promise<StageExecutionResult> {
+    const res = await fetch(`${API_BASE}/simulation/stage`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ stage_id: stageId, custom_payload: customPayload }),
+    });
+    if (!res.ok) {
+      throw new Error(`Stage simulation failed with HTTP status ${res.status}`);
+    }
+    return await res.json();
+  },
+
+  async toggleSimulationMitigation(enable: boolean): Promise<{ mitigation_active: boolean; message: string; applied_defenses: string[] }> {
+    const res = await fetch(`${API_BASE}/simulation/mitigation/toggle`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ enable }),
+    });
+    if (!res.ok) {
+      throw new Error(`Toggle mitigation failed with HTTP status ${res.status}`);
+    }
+    return await res.json();
+  },
+
+  async resetSimulationLab(): Promise<{ status: string; message: string }> {
+    const res = await fetch(`${API_BASE}/simulation/reset`, { method: "POST" });
+    if (!res.ok) {
+      throw new Error(`Reset lab failed with HTTP status ${res.status}`);
+    }
+    return await res.json();
   },
 };

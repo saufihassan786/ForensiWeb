@@ -12,6 +12,7 @@ export interface MetricCardProps {
   icon?: React.ReactNode;
   variant?: "blue" | "cyan" | "violet" | "critical";
   className?: string;
+  onClick?: () => void;
 }
 
 export const MetricCard: React.FC<MetricCardProps> = ({
@@ -21,6 +22,7 @@ export const MetricCard: React.FC<MetricCardProps> = ({
   icon,
   variant = "blue",
   className = "",
+  onClick,
 }) => {
   const accentColors = {
     blue: "text-accent-blue border-accent-blue/20 bg-accent-blue/10",
@@ -30,7 +32,13 @@ export const MetricCard: React.FC<MetricCardProps> = ({
   };
 
   return (
-    <Card className={className} glow={variant === "critical" ? "none" : variant}>
+    <Card
+      className={`${className} ${
+        onClick ? "cursor-pointer interactive-card hover:border-border-active transition-all" : ""
+      }`}
+      glow={variant === "critical" ? "none" : variant}
+      onClick={onClick}
+    >
       <div className="flex items-start justify-between">
         <div>
           <p className="text-xs font-semibold uppercase tracking-wider text-text-muted">

@@ -12,9 +12,14 @@ import {
   ExternalLink,
   GitBranch,
   Search,
+  Zap,
 } from "lucide-react";
 
-export const TimelinePage: React.FC = () => {
+export interface TimelinePageProps {
+  onOpenSimulator?: () => void;
+}
+
+export const TimelinePage: React.FC<TimelinePageProps> = ({ onOpenSimulator }) => {
   const [timeline, setTimeline] = useState<TimelineEntry[]>([]);
   const [graph, setGraph] = useState<AttackChainGraph | null>(null);
   const [selectedEntry, setSelectedEntry] = useState<TimelineEntry | null>(null);
@@ -79,6 +84,16 @@ export const TimelinePage: React.FC = () => {
           >
             Attack Chain Graph
           </Button>
+          {onOpenSimulator && (
+            <Button
+              variant="primary"
+              size="sm"
+              icon={<Zap className="w-3.5 h-3.5" />}
+              onClick={onOpenSimulator}
+            >
+              Simulate Attack
+            </Button>
+          )}
         </div>
       </div>
 
@@ -162,7 +177,8 @@ export const TimelinePage: React.FC = () => {
             return (
               <div
                 key={entry.id}
-                className="p-5 rounded-card border border-border-default bg-surface-primary hover:border-border-active transition-all shadow-sm"
+                onClick={() => setSelectedEntry(entry)}
+                className="p-5 rounded-card border border-border-default bg-surface-primary hover:border-accent-blue/50 cursor-pointer transition-all shadow-sm group"
               >
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-2 mb-2">
                   <div className="flex items-center gap-2">

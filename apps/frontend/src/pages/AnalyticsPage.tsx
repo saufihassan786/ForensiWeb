@@ -9,9 +9,21 @@ import {
   AlertOctagon,
   Database,
   FileCheck,
+  FileText,
+  ShieldCheck,
+  Zap,
 } from "lucide-react";
+import { Button } from "@/components/common/Button";
 
-export const AnalyticsPage: React.FC = () => {
+export interface AnalyticsPageProps {
+  onNavigateTab?: (tab: string) => void;
+  onOpenSimulator?: () => void;
+}
+
+export const AnalyticsPage: React.FC<AnalyticsPageProps> = ({
+  onNavigateTab,
+  onOpenSimulator,
+}) => {
   const [analytics, setAnalytics] = useState<DashboardAnalytics | null>(null);
 
   useEffect(() => {
@@ -40,8 +52,8 @@ export const AnalyticsPage: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      {/* Top Banner */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-5 rounded-card border border-border-default bg-surface-primary shadow-sm">
+      {/* Top Banner with Quick Actions */}
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 p-5 rounded-card border border-border-default bg-surface-primary shadow-sm">
         <div>
           <div className="flex items-center gap-2 mb-1.5">
             <Badge variant="verified" dot>ANALYTICS ENGINE (PHASE-13)</Badge>
@@ -54,9 +66,42 @@ export const AnalyticsPage: React.FC = () => {
             Real-time evidence telemetry, attack-stage progression metrics, and deterministic risk score attribution.
           </p>
         </div>
+
+        {/* Interactive Quick Action Buttons */}
+        <div className="flex flex-wrap items-center gap-2.5 shrink-0">
+          <Button
+            variant="primary"
+            size="sm"
+            onClick={onOpenSimulator}
+            className="flex items-center gap-1.5 bg-accent-blue hover:bg-accent-blue-light text-white font-semibold shadow-glow-blue"
+          >
+            <Zap className="w-3.5 h-3.5 fill-current animate-pulse text-accent-cyan" />
+            <span>Simulate Attack</span>
+          </Button>
+
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => onNavigateTab?.("reports")}
+            className="flex items-center gap-1.5"
+          >
+            <FileText className="w-3.5 h-3.5 text-accent-cyan" />
+            <span>Generate Report</span>
+          </Button>
+
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => onNavigateTab?.("mitigation")}
+            className="flex items-center gap-1.5"
+          >
+            <ShieldCheck className="w-3.5 h-3.5 text-status-success" />
+            <span>Mitigations</span>
+          </Button>
+        </div>
       </div>
 
-      {/* High-Level Metric Cards */}
+      {/* High-Level Metric Cards (All Clickable for Direct Drilldown) */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <MetricCard
           label="Total Evidence Artifacts"
@@ -64,6 +109,8 @@ export const AnalyticsPage: React.FC = () => {
           trend={{ value: `${evidence_metrics.verified_hashes} Verified`, isPositive: true }}
           variant="cyan"
           icon={<Database className="w-5 h-5 text-accent-cyan" />}
+          onClick={() => onNavigateTab?.("evidence")}
+          className="hover:scale-[1.02] transition-transform"
         />
         <MetricCard
           label="Normalized Events"
@@ -71,6 +118,8 @@ export const AnalyticsPage: React.FC = () => {
           trend={{ value: "ISO-8601 UTC", isPositive: true }}
           variant="blue"
           icon={<Activity className="w-5 h-5 text-accent-blue" />}
+          onClick={() => onNavigateTab?.("events")}
+          className="hover:scale-[1.02] transition-transform"
         />
         <MetricCard
           label="Security Detections"
@@ -78,6 +127,8 @@ export const AnalyticsPage: React.FC = () => {
           trend={{ value: `${detection_metrics.by_severity.critical || 0} Critical`, isPositive: false }}
           variant="critical"
           icon={<AlertOctagon className="w-5 h-5 text-status-critical" />}
+          onClick={() => onNavigateTab?.("detections")}
+          className="hover:scale-[1.02] transition-transform"
         />
         <MetricCard
           label="Confirmed Findings"
@@ -85,6 +136,8 @@ export const AnalyticsPage: React.FC = () => {
           trend={{ value: `${finding_metrics.mitigated_count} Mitigated`, isPositive: true }}
           variant="violet"
           icon={<FileCheck className="w-5 h-5 text-accent-violet" />}
+          onClick={() => onNavigateTab?.("findings")}
+          className="hover:scale-[1.02] transition-transform"
         />
       </div>
 
