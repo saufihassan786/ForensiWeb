@@ -179,12 +179,21 @@ async def upload_evidence(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
 
 
+def _validate_safe_id(identifier: str) -> None:
+    if ".." in identifier or "/" in identifier or "\\" in identifier or "\0" in identifier:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Security violation: Invalid identifier containing path traversal characters",
+        )
+
+
 @router.get("/{evidence_id}", response_model=EvidenceRead, summary="Get Evidence Details")
 async def get_evidence(
     evidence_id: str,
     service: EvidenceService = Depends(get_evidence_service),
 ) -> EvidenceRead:
     """Retrieve metadata for a specific evidence item."""
+    _validate_safe_id(evidence_id)
     for e in _SAMPLE_EVIDENCE:
         if e.id == evidence_id:
             return e
@@ -198,6 +207,8 @@ async def verify_evidence(
     service: EvidenceService = Depends(get_evidence_service),
 ):
     """Audit cryptographic integrity and immutability of a specific evidence artifact."""
+    _validate_safe_id(evidence_id)
+    _validate_safe_id(case_id)
     result = service.verify_single_evidence(case_id=case_id, evidence_id=evidence_id)
     return {
         "evidence_id": result.evidence_id,
@@ -217,6 +228,8 @@ async def download_evidence(
     service: EvidenceService = Depends(get_evidence_service),
 ):
     """Safely retrieve pristine evidence bytes after verifying cryptographic integrity."""
+    _validate_safe_id(evidence_id)
+    _validate_safe_id(case_id)
     try:
         ev = next((e for e in _SAMPLE_EVIDENCE if e.id == evidence_id), None)
         filename = ev.filename if ev else f"{evidence_id}.bin"

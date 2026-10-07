@@ -80,14 +80,29 @@ def create_app(config: Optional[LabConfig] = None) -> Flask:
                 "status": "GET /api/status",
                 "view_access_log": "GET /api/logs/access",
                 "view_audit_log": "GET /api/logs/audit",
+                "mitigation_enable": "POST /api/mitigation/enable",
+                "mitigation_disable": "POST /api/mitigation/disable",
+                "mitigation_status": "GET /api/mitigation/status",
             },
         })
+
+    def is_mitigation_active() -> bool:
+        return lab_cfg.is_mitigated or request.headers.get("X-Lab-Mitigation", "").lower() in ("true", "1")
 
     @app.route("/document", methods=["GET"])
     def document():
         """Stage S1 (LFI) and Stage S3 (Log Poisoning RCE)."""
         file_param = request.args.get("file", "welcome.txt")
         cmd_param = request.args.get("cmd")
+
+        # Check if security mitigations are enabled (PHASE-15)
+        if is_mitigation_active():
+            if "../" in file_param or "..\\" in file_param or "access.log" in file_param or "/" in file_param or "\\" in file_param:
+                return Response(
+                    "[SECURITY_MITIGATION_ACTIVE] Directory traversal and log inclusion blocked by input whitelist policy.\n",
+                    status=403,
+                    mimetype="text/plain",
+                )
 
         # 1. Check for Log Poisoning RCE Trigger (Stage S3)
         if "access.log" in file_param and cmd_param:
@@ -134,6 +149,13 @@ def create_app(config: Optional[LabConfig] = None) -> Flask:
     @app.route("/shell", methods=["GET", "POST"])
     def web_shell():
         """Stage S4: Controlled Web Shell Interaction."""
+        if is_mitigation_active():
+            return jsonify({
+                "status": "blocked",
+                "stage": "WEB_SHELL",
+                "message": "[SECURITY_MITIGATION_ACTIVE] Web shell access disabled by security policy.",
+            }), 403
+
         cmd = request.args.get("cmd") or request.form.get("cmd", "id")
 
         lab_logger.log_auditd_execve(
@@ -160,6 +182,13 @@ def create_app(config: Optional[LabConfig] = None) -> Flask:
     @app.route("/post-exploitation/meterpreter", methods=["GET", "POST"])
     def meterpreter_probe():
         """Stage S4b / Post-Exploitation: Controlled Meterpreter Telemetry Simulation."""
+        if is_mitigation_active():
+            return jsonify({
+                "status": "blocked",
+                "stage": "METERPRETER_POST_EXPLOITATION",
+                "message": "[SECURITY_MITIGATION_ACTIVE] Unauthorized beacon blocked by network egress policy.",
+            }), 403
+
         lhost = request.args.get("lhost") or "10.0.50.5"
         lport = request.args.get("lport") or "4444"
         session_id = request.args.get("session_id", "sess-01")
@@ -186,12 +215,22 @@ def create_app(config: Optional[LabConfig] = None) -> Flask:
     @app.route("/privesc/run-backup", methods=["POST"])
     def privesc_backup():
         """Stage S5: Controlled PATH Misconfiguration Execution."""
-        # Simulates an automated backup process that executes a relative binary
-        # using a hijacked PATH environment variable.
+        if is_mitigation_active():
+            # In mitigated state, PATH is strictly hardcoded to trusted bin dirs
+            # and executed as unprivileged labuser without elevation
+            return jsonify({
+                "status": "mitigated",
+                "stage": "PRIVILEGE_ESCALATION",
+                "effective_uid": 1000,
+                "effective_user": "labuser",
+                "path_used": "/usr/bin:/bin",
+                "message": "[SECURITY_MITIGATION_ACTIVE] Executed with sanitized system PATH; elevation prevented.",
+            })
+
         hijacked_path = request.headers.get("X-Lab-PATH", "/tmp/bin:/usr/local/bin:/usr/bin:/bin")
 
         # Auditd records elevated execution with root privileges (uid=0, euid=0)
-        audit_record = lab_logger.log_auditd_execve(
+        lab_logger.log_auditd_execve(
             comm="backup_tool",
             args=["/tmp/bin/backup_tool", "--full"],
             uid=0,
@@ -205,6 +244,31 @@ def create_app(config: Optional[LabConfig] = None) -> Flask:
             "effective_user": "root",
             "path_used": hijacked_path,
             "message": "Elevated backup task executed with hijacked PATH binary.",
+        })
+
+    @app.route("/api/mitigation/enable", methods=["POST"])
+    def enable_mitigation():
+        """Enable secure mitigation mode."""
+        lab_cfg.is_mitigated = True
+        return jsonify({"status": "enabled", "is_mitigated": True, "message": "Security mitigations active."})
+
+    @app.route("/api/mitigation/disable", methods=["POST"])
+    def disable_mitigation():
+        """Disable secure mitigation mode."""
+        lab_cfg.is_mitigated = False
+        return jsonify({"status": "disabled", "is_mitigated": False, "message": "Security mitigations inactive."})
+
+    @app.route("/api/mitigation/status", methods=["GET"])
+    def mitigation_status():
+        """Check status of security mitigations."""
+        return jsonify({
+            "is_mitigated": lab_cfg.is_mitigated,
+            "active_controls": [
+                "path_whitelist_validation",
+                "web_shell_disabled",
+                "egress_beacon_blocked",
+                "sanitized_script_path",
+            ] if lab_cfg.is_mitigated else [],
         })
 
     @app.route("/api/reset", methods=["POST"])
@@ -226,6 +290,7 @@ def create_app(config: Optional[LabConfig] = None) -> Flask:
 
         return jsonify({
             "scenario": "WEB-CHAIN-001",
+            "is_mitigated": lab_cfg.is_mitigated,
             "access_log_lines": access_lines,
             "audit_log_lines": audit_lines,
             "is_poisoned": "SIMULATED_POISON_PAYLOAD" in (

@@ -10,6 +10,7 @@ from app.api.v1.endpoints import (
     evidence,
     findings,
     health,
+    mitigation,
     reports,
     timeline,
 )
@@ -25,4 +26,5 @@ api_v1_router.include_router(timeline.router)
 api_v1_router.include_router(findings.router)
 api_v1_router.include_router(reports.router)
 api_v1_router.include_router(analytics.router)
+api_v1_router.include_router(mitigation.router)
 

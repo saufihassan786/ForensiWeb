@@ -19,6 +19,9 @@ class LabConfig:
         self.audit_log_path = self.log_dir / "audit.log"
         self.error_log_path = self.log_dir / "error.log"
 
+        # Mitigation state toggle
+        self.is_mitigated = False
+
         # Mock legitimate documents directory
         self.docs_dir = REPO_ROOT / "lab" / "fixtures" / "docs"
         self.docs_dir.mkdir(parents=True, exist_ok=True)

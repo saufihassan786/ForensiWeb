@@ -15,6 +15,7 @@ import {
   Settings,
   Shield,
   ShieldAlert,
+  ShieldCheck,
 } from "lucide-react";
 
 export type NavItem = {
@@ -55,6 +56,7 @@ export const NAV_SECTIONS: NavSection[] = [
   {
     title: "LAB",
     items: [
+      { id: "mitigation", label: "Mitigation & Verify", icon: ShieldCheck },
       { id: "scenarios", label: "Scenarios", icon: FlaskConical },
       { id: "lab-status", label: "Lab Status", icon: ShieldAlert },
     ],
