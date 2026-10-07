@@ -9,7 +9,7 @@ from __future__ import annotations
 import os
 from functools import lru_cache
 from pathlib import Path
-from typing import Any, Dict, List, Literal, Optional
+from typing import Any, Dict, List, Literal, Optional, Union
 
 from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -30,7 +30,7 @@ class Settings(BaseSettings):
         "Academic Digital Forensics and Security Analysis Platform API — "
         "Log Poisoning & Privilege Escalation Investigation"
     )
-    CORS_ORIGINS: List[str] = [
+    CORS_ORIGINS: Union[List[str], str] = [
         "http://localhost:3000",
         "http://127.0.0.1:3000",
         "http://localhost:5173",
@@ -60,7 +60,7 @@ class Settings(BaseSettings):
     EVIDENCE_WORKING_DIR: Path = Path("data/evidence/working")
     EVIDENCE_DERIVED_DIR: Path = Path("data/evidence/derived")
     EVIDENCE_MAX_FILE_SIZE_MB: int = 100
-    EVIDENCE_ALLOWED_TYPES: List[str] = [
+    EVIDENCE_ALLOWED_TYPES: Union[List[str], str] = [
         "text/plain",
         "application/json",
         "application/octet-stream",
@@ -75,7 +75,7 @@ class Settings(BaseSettings):
 
     # 6. Logging Settings
     LOG_LEVEL: Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] = "INFO"
-    LOG_FORMAT: Literal["json", "text"] = "json"
+    LOG_FORMAT: Literal["json", "text", "console"] = "json"
 
     model_config = SettingsConfigDict(
         env_file=(".env", "../.env", "../../.env"),

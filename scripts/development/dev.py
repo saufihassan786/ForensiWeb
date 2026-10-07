@@ -98,6 +98,109 @@ def cmd_lab_reset(args: argparse.Namespace) -> int:
     return 0
 
 
+def _get_api_env() -> dict:
+    import os
+    env = os.environ.copy()
+    py_paths = [
+        str(REPO_ROOT),
+        str(REPO_ROOT / "apps" / "api"),
+        str(REPO_ROOT / "packages" / "detection-engine"),
+        str(REPO_ROOT / "packages" / "forensic-engine"),
+        str(REPO_ROOT / "packages" / "report-engine"),
+    ]
+    env["PYTHONPATH"] = os.pathsep.join(py_paths)
+    return env
+
+
+def cmd_start_lab(args: argparse.Namespace) -> int:
+    """Start the vulnerable web target on port 5000."""
+    print("Starting Vulnerable Lab Target on http://127.0.0.1:5000 ...")
+    return subprocess.run(
+        [sys.executable, "-m", "app.main"],
+        cwd=str(REPO_ROOT / "apps" / "vulnerable-web-app"),
+    ).returncode
+
+
+def cmd_start_api(args: argparse.Namespace) -> int:
+    """Start the FastAPI backend on port 8000."""
+    print("Starting ForensiWeb Backend API on http://127.0.0.1:8000 ...")
+    return subprocess.run(
+        [sys.executable, "-m", "uvicorn", "app.main:app", "--host", "127.0.0.1", "--port", "8000"],
+        cwd=str(REPO_ROOT),
+        env=_get_api_env(),
+    ).returncode
+
+
+def cmd_start_frontend(args: argparse.Namespace) -> int:
+    """Start the React Vite frontend on port 5173."""
+    print("Starting ForensiWeb Frontend UI on http://localhost:5173 ...")
+    npm_cmd = "npm.cmd" if sys.platform == "win32" else "npm"
+    return subprocess.run(
+        [npm_cmd, "run", "dev"],
+        cwd=str(REPO_ROOT / "apps" / "frontend"),
+    ).returncode
+
+
+def cmd_start_all(args: argparse.Namespace) -> int:
+    """Start all three local servers concurrently (Lab Target, Backend API, Frontend)."""
+    import time
+    npm_cmd = "npm.cmd" if sys.platform == "win32" else "npm"
+    processes = []
+    try:
+        print("[1/3] Starting Vulnerable Lab Target on http://127.0.0.1:5000 ...")
+        proc_lab = subprocess.Popen(
+            [sys.executable, "-m", "app.main"],
+            cwd=str(REPO_ROOT / "apps" / "vulnerable-web-app"),
+        )
+        processes.append(("Lab Target", proc_lab))
+
+        print("[2/3] Starting ForensiWeb Backend API on http://127.0.0.1:8000 ...")
+        proc_api = subprocess.Popen(
+            [sys.executable, "-m", "uvicorn", "app.main:app", "--host", "127.0.0.1", "--port", "8000"],
+            cwd=str(REPO_ROOT),
+            env=_get_api_env(),
+        )
+        processes.append(("Backend API", proc_api))
+
+        print("[3/3] Starting ForensiWeb Frontend UI on http://localhost:5173 ...")
+        proc_fe = subprocess.Popen(
+            [npm_cmd, "run", "dev"],
+            cwd=str(REPO_ROOT / "apps" / "frontend"),
+        )
+        processes.append(("Frontend UI", proc_fe))
+
+        print("\n=== ForensiWeb Services Active ===")
+        print("  - Lab Target:  http://127.0.0.1:5000")
+        print("  - Backend API: http://127.0.0.1:8000 (OpenAPI Docs: /docs)")
+        print("  - Frontend UI: http://localhost:5173")
+        print("\nPress Ctrl+C to terminate all services.\n")
+
+        while True:
+            for name, p in processes:
+                code = p.poll()
+                if code is not None:
+                    print(f"Service '{name}' exited with code {code}.")
+                    return code
+            time.sleep(1)
+
+    except KeyboardInterrupt:
+        print("\nGracefully stopping ForensiWeb services...")
+        for name, p in processes:
+            p.terminate()
+            try:
+                p.wait(timeout=3)
+            except subprocess.TimeoutExpired:
+                p.kill()
+        print("All services stopped.")
+        return 0
+
+
+def cmd_pipeline(args: argparse.Namespace) -> int:
+    """Execute the end-to-end forensic investigation pipeline."""
+    script = REPO_ROOT / "scripts" / "testing" / "run_e2e_pipeline.py"
+    return subprocess.run([sys.executable, str(script)]).returncode
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="dev.py",
@@ -127,6 +230,21 @@ def build_parser() -> argparse.ArgumentParser:
     # lab-reset
     subparsers.add_parser("lab-reset", help="Reset working evidence and laboratory state")
 
+    # start-all
+    subparsers.add_parser("start-all", help="Start all local services (Lab on 5000, API on 8000, Frontend on 5173)")
+
+    # start-lab
+    subparsers.add_parser("start-lab", help="Start vulnerable target web application (port 5000)")
+
+    # start-api
+    subparsers.add_parser("start-api", help="Start FastAPI backend application (port 8000)")
+
+    # start-frontend
+    subparsers.add_parser("start-frontend", help="Start React Vite frontend application (port 5173)")
+
+    # pipeline
+    subparsers.add_parser("pipeline", help="Run end-to-end forensic investigation scenario and report generation")
+
     return parser
 
 
@@ -144,6 +262,11 @@ def main() -> int:
         "hygiene": cmd_hygiene,
         "clean": cmd_clean,
         "lab-reset": cmd_lab_reset,
+        "start-all": cmd_start_all,
+        "start-lab": cmd_start_lab,
+        "start-api": cmd_start_api,
+        "start-frontend": cmd_start_frontend,
+        "pipeline": cmd_pipeline,
     }
 
     handler = dispatch.get(args.command)

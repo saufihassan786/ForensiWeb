@@ -12,7 +12,32 @@ import hashlib
 import json
 import os
 from pathlib import Path
+import sys
+import importlib.util
 from typing import Any, Dict, List
+
+REPO_ROOT = Path(__file__).resolve().parent.parent.parent
+for _p in [
+    str(REPO_ROOT),
+    str(REPO_ROOT / "apps" / "api"),
+    str(REPO_ROOT / "packages" / "detection-engine"),
+    str(REPO_ROOT / "packages" / "forensic-engine"),
+    str(REPO_ROOT / "packages" / "report-engine"),
+]:
+    if _p not in sys.path:
+        sys.path.insert(0, _p)
+
+_vuln_app_dir = REPO_ROOT / "apps" / "vulnerable-web-app" / "app"
+if _vuln_app_dir.is_dir() and "vuln_app" not in sys.modules:
+    spec = importlib.util.spec_from_file_location(
+        "vuln_app",
+        _vuln_app_dir / "__init__.py",
+        submodule_search_locations=[str(_vuln_app_dir)],
+    )
+    if spec and spec.loader:
+        mod = importlib.util.module_from_spec(spec)
+        sys.modules["vuln_app"] = mod
+        spec.loader.exec_module(mod)
 
 from evaluator.engine import DetectionEngine
 from correlation.engine import CorrelationEngine
