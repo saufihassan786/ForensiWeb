@@ -1,6 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
-import React from "react";
 import { Button } from "../components/common/Button";
 import { Badge } from "../components/common/Badge";
 import { Card } from "../components/common/Card";

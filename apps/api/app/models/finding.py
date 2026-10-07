@@ -39,6 +39,8 @@ class Finding(Base):
     analysis_summary: Mapped[str] = mapped_column(Text, nullable=False)
     mitigation_summary: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     evidence_references: Mapped[List[str]] = mapped_column(JSON, nullable=False, default=list)
+    detection_ids: Mapped[List[str]] = mapped_column(JSON, nullable=False, default=list)
+    event_ids: Mapped[List[str]] = mapped_column(JSON, nullable=False, default=list)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,

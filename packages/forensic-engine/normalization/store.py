@@ -64,6 +64,22 @@ class NormalizedEventStore:
         self._memory_cache[case_id] = events
         return events
 
+    def get(self, event_id: str, case_id: Optional[str] = None) -> Optional[CommonEventModel]:
+        """Retrieve a specific normalized event by ID."""
+        if case_id:
+            events = self.load_events(case_id)
+            for ev in events:
+                if ev.event_id == event_id:
+                    return ev
+            return None
+
+        # Search across all cached cases
+        for cached_events in self._memory_cache.values():
+            for ev in cached_events:
+                if ev.event_id == event_id:
+                    return ev
+        return None
+
     def search(self, case_id: str, query: str) -> List[CommonEventModel]:
         """Search events in case by keyword across actors, targets, actions, and raw payloads."""
         all_events = self.load_events(case_id)
@@ -137,3 +153,7 @@ class NormalizedEventStore:
             return event.raw_content.rstrip("\r\n") == extracted_slice
         except Exception:
             return False
+
+
+EventStore = NormalizedEventStore
+

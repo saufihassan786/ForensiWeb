@@ -174,3 +174,16 @@ class EvidenceStorage:
                 return self.create_working_copy(case_id, evidence_id, filename)
             raise EvidenceNotFoundError(f"Working copy file not found: {p}")
         return p
+
+    def list_original_files(self, case_id: str) -> List[Path]:
+        """List all preserved pristine original evidence files for a case."""
+        case_orig_dir = self.get_case_original_dir(case_id)
+        if not case_orig_dir.exists():
+            return []
+        files: List[Path] = []
+        for p in case_orig_dir.rglob("*"):
+            if p.is_file():
+                files.append(p)
+        return files
+
+

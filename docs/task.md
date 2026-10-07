@@ -1448,14 +1448,14 @@ An evaluator can reconstruct the controlled attack sequence from the timeline wi
 
 ## Completion Checklist
 
-- [ ] Timeline model complete
-- [ ] Timeline UI complete
-- [ ] Filtering complete
-- [ ] Drill-down complete
-- [ ] Evidence references complete
-- [ ] Attack-chain graph complete
-- [ ] Timeline tests pass
-- [ ] Phase review complete
+- [x] Timeline model complete
+- [x] Timeline UI complete
+- [x] Filtering complete
+- [x] Drill-down complete
+- [x] Evidence references complete
+- [x] Attack-chain graph complete
+- [x] Timeline tests pass
+- [x] Phase review complete
 
 ---
 
@@ -1516,14 +1516,14 @@ An investigator can navigate from a finding to its supporting evidence and origi
 
 ## Completion Checklist
 
-- [ ] Case management complete
-- [ ] Evidence workspace complete
-- [ ] Event investigation complete
-- [ ] Detection investigation complete
-- [ ] Finding management complete
-- [ ] Traceability verified
-- [ ] Tests pass
-- [ ] Phase review complete
+- [x] Case management complete
+- [x] Evidence workspace complete
+- [x] Event investigation complete
+- [x] Detection investigation complete
+- [x] Finding management complete
+- [x] Traceability verified
+- [x] Tests pass
+- [x] Phase review complete
 
 ---
 
@@ -1575,13 +1575,13 @@ Dashboard values can be traced to the underlying case, evidence, event, detectio
 
 ## Completion Checklist
 
-- [ ] Required metrics implemented
-- [ ] Analytics verified
-- [ ] Empty states verified
-- [ ] Loading states verified
-- [ ] Accuracy tested
-- [ ] UX reviewed
-- [ ] Phase review complete
+- [x] Required metrics implemented
+- [x] Analytics verified
+- [x] Empty states verified
+- [x] Loading states verified
+- [x] Accuracy tested
+- [x] UX reviewed
+- [x] Phase review complete
 
 ---
 

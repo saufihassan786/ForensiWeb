@@ -79,3 +79,24 @@ def verify_sha256(
         )
 
     return False
+
+
+class StreamHasher:
+    """Helper class providing static methods for stream hashing."""
+
+    @staticmethod
+    def compute_file_sha256(path: Union[str, Path], chunk_size: int = DEFAULT_CHUNK_SIZE) -> str:
+        return calculate_sha256(path, chunk_size=chunk_size)
+
+    @staticmethod
+    def calculate_sha256(target: Union[bytes, str, Path], chunk_size: int = DEFAULT_CHUNK_SIZE) -> str:
+        return calculate_sha256(target, chunk_size=chunk_size)
+
+    @staticmethod
+    def verify_sha256(
+        target: Union[bytes, str, Path],
+        expected_hash: str,
+        raise_on_mismatch: bool = False,
+    ) -> bool:
+        return verify_sha256(target, expected_hash, raise_on_mismatch=raise_on_mismatch)
+

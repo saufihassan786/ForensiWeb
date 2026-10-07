@@ -3,6 +3,7 @@
 from fastapi import APIRouter
 
 from app.api.v1.endpoints import (
+    analytics,
     cases,
     detections,
     events,
@@ -23,3 +24,5 @@ api_v1_router.include_router(detections.router)
 api_v1_router.include_router(timeline.router)
 api_v1_router.include_router(findings.router)
 api_v1_router.include_router(reports.router)
+api_v1_router.include_router(analytics.router)
+
