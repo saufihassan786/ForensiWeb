@@ -290,14 +290,14 @@ export const InvestigationPage: React.FC<InvestigationPageProps> = ({ defaultSub
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
             <div className="flex items-center gap-2 mb-1.5">
-              <Badge variant="verified" dot>INVESTIGATION WORKSPACE (PHASE-12)</Badge>
-              <Badge variant="informational">CHAIN OF CUSTODY ASSURED</Badge>
+              <Badge variant="verified" dot>INVESTIGATION</Badge>
+              <Badge variant="informational">CASE-001</Badge>
             </div>
             <h2 className="text-xl font-bold tracking-tight text-text-primary">
-              Unified Digital Forensics Investigation Center
+              Evidence &amp; Case Files
             </h2>
-            <p className="text-xs text-text-secondary mt-1">
-              Navigate cases, inspect forensic evidence with exact byte offsets, review normalized events, and audit cryptographic traceability.
+            <p className="text-xs text-text-secondary mt-0.5">
+              Inspect preserved logs, review detected events, and verify findings.
             </p>
           </div>
         </div>

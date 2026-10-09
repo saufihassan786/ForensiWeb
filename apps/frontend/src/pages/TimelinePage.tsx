@@ -57,14 +57,14 @@ export const TimelinePage: React.FC<TimelinePageProps> = ({ onOpenSimulator }) =
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-5 rounded-card border border-border-default bg-surface-primary shadow-sm">
         <div>
           <div className="flex items-center gap-2 mb-1.5">
-            <Badge variant="verified" dot>CHRONOLOGICAL TIMELINE ENGINE</Badge>
-            <Badge variant="informational">ISO/IEC 27037 FIDELITY</Badge>
+            <Badge variant="verified" dot>TIMELINE</Badge>
+            <Badge variant="informational">5 STAGES</Badge>
           </div>
           <h2 className="text-xl font-bold tracking-tight text-text-primary">
-            Incident Attack Timeline & Progression Graph
+            Incident Attack Timeline
           </h2>
-          <p className="text-xs text-text-secondary mt-1">
-            Reconstruct and trace the sequential attack progression from initial reconnaissance through privilege escalation.
+          <p className="text-xs text-text-secondary mt-0.5">
+            Step-by-step history of how the attack started, progressed, and was caught.
           </p>
         </div>
         <div className="flex items-center gap-2">

@@ -1,4 +1,5 @@
 import React from "react";
+import { BrandLogo } from "@/components/common/BrandLogo";
 import {
   Activity,
   AlertOctagon,
@@ -56,7 +57,7 @@ export const NAV_SECTIONS: NavSection[] = [
   {
     title: "LAB",
     items: [
-      { id: "mitigation", label: "Mitigation & Verify", icon: ShieldCheck },
+      { id: "mitigation", label: "Defense Shield", icon: ShieldCheck },
       { id: "scenarios", label: "Scenarios", icon: FlaskConical },
       { id: "lab-status", label: "Lab Status", icon: ShieldAlert },
     ],
@@ -95,27 +96,15 @@ export const Sidebar: React.FC<SidebarProps> = ({
       aria-label="Primary Platform Navigation"
     >
       {/* Brand Header */}
-      <div className="h-16 px-4 border-b border-border-default flex items-center justify-between">
-        {!isCollapsed && (
-          <div className="flex items-center gap-2.5 overflow-hidden">
-            <div className="w-8 h-8 rounded-lg bg-accent-blue/15 border border-accent-blue/30 flex items-center justify-center text-accent-cyan shadow-glow-cyan">
-              <Shield className="w-4 h-4 text-accent-cyan" />
-            </div>
-            <div className="flex flex-col">
-              <span className="font-bold text-sm tracking-wider text-text-primary uppercase">
-                Forensi<span className="text-accent-cyan">Web</span>
-              </span>
-              <span className="text-[10px] font-mono text-accent-blue-light tracking-widest uppercase">
-                v0.1.0 Command
-              </span>
-            </div>
-          </div>
-        )}
-        {isCollapsed && (
-          <div className="mx-auto w-8 h-8 rounded-lg bg-accent-blue/15 border border-accent-blue/30 flex items-center justify-center text-accent-cyan shadow-glow-cyan">
-            <Shield className="w-4 h-4 text-accent-cyan" />
-          </div>
-        )}
+      <div className="h-16 px-3 border-b border-border-default flex items-center justify-between overflow-hidden">
+        <BrandLogo
+          size="sm"
+          showText={!isCollapsed}
+          interactive={true}
+          onClick={() => onSelectTab("overview")}
+          title="ForensiWeb Command Center — Go to Overview"
+          className="w-full"
+        />
       </div>
 
       {/* Navigation Links */}

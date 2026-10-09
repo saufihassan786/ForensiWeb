@@ -1,21 +1,20 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Modal } from "@/components/common/Modal";
 import { Badge } from "@/components/common/Badge";
 import { Button } from "@/components/common/Button";
 import { apiService } from "@/services/api";
-import { ScenarioRunResult, SimulationStatus, StageExecutionResult } from "@/types/api";
+import { SimulationStatus, StageExecutionResult } from "@/types/api";
 import {
-  AlertOctagon,
   ChevronDown,
   ChevronUp,
   Cpu,
   Flame,
-  Globe,
   Play,
   RotateCcw,
-  ShieldAlert,
   ShieldCheck,
-  Terminal,
+  ShieldOff,
+  Square,
+  Zap,
 } from "lucide-react";
 
 export interface AttackSimulatorModalProps {
@@ -25,46 +24,52 @@ export interface AttackSimulatorModalProps {
   onNavigateToReports?: () => void;
 }
 
-const DEFAULT_STAGES = [
+// 5 Gamified stages written in simple, clear language for any user
+const GAME_STAGES = [
   {
     id: "S1",
-    name: "Local File Inclusion (LFI)",
-    description: "Directory traversal probe targeting system and web files.",
+    level: 1,
+    icon: "🔍",
+    title: "1. Probe Hidden Files",
+    hackerMove: "The hacker checks if secret system files are locked or accessible.",
+    systemDefense: "Radar flags unauthorized directory traversal attempts.",
     endpoint: "GET /document?file=../../../../etc/passwd",
-    mitre: "T1083",
-    severity: "medium",
   },
   {
     id: "S2",
-    name: "Apache Log Poisoning",
-    description: "Injection of PHP evaluation payload into HTTP User-Agent header.",
-    endpoint: "GET /document?file=welcome.txt (with injected User-Agent)",
-    mitre: "T1059.004",
-    severity: "high",
+    level: 2,
+    icon: "💉",
+    title: "2. Poison Web Logs",
+    hackerMove: "The hacker sends a web request with hidden code inside the visitor name.",
+    systemDefense: "Web log inspector spots malicious code injected into access logs.",
+    endpoint: "GET /document?file=welcome.txt (with injected header)",
   },
   {
     id: "S3",
-    name: "RCE via Log Inclusion",
-    description: "Inclusion of poisoned access.log triggering code execution.",
+    level: 3,
+    icon: "💥",
+    title: "3. Trigger The Trap",
+    hackerMove: "The hacker opens the poisoned log file to execute the planted code.",
+    systemDefense: "Intrusion sensor catches unauthorized remote code execution.",
     endpoint: "GET /document?file=../../logs/access.log&cmd=whoami",
-    mitre: "T1059.004",
-    severity: "critical",
   },
   {
     id: "S4",
-    name: "Web Shell Interaction",
-    description: "Interactive arbitrary command execution via uploaded web shell.",
+    level: 4,
+    icon: "🕹️",
+    title: "4. Remote Control",
+    hackerMove: "The hacker opens an interactive command shell to control the server.",
+    systemDefense: "Behavioral monitor isolates suspicious command execution.",
     endpoint: "POST /shell (cmd=id; uname -a)",
-    mitre: "T1505.003",
-    severity: "critical",
   },
   {
     id: "S5",
-    name: "Privilege Escalation",
-    description: "PATH environment manipulation to hijack binary execution to root.",
+    level: 5,
+    icon: "👑",
+    title: "5. Admin Takeover",
+    hackerMove: "The hacker manipulates system paths to gain supreme administrator (root) power.",
+    systemDefense: "Audit shield flags privileged escalation attempt.",
     endpoint: "POST /privesc/run-backup",
-    mitre: "T1548.001",
-    severity: "critical",
   },
 ];
 
@@ -74,23 +79,31 @@ export const AttackSimulatorModal: React.FC<AttackSimulatorModalProps> = ({
   onNavigateToTimeline,
   onNavigateToReports,
 }) => {
-  const [labStatus, setLabStatus] = useState<SimulationStatus | null>(null);
-  const [isRunning, setIsRunning] = useState(false);
+  const [, setLabStatus] = useState<SimulationStatus | null>(null);
+  const [isAutoRunning, setIsAutoRunning] = useState(false);
   const [currentRunningStage, setCurrentRunningStage] = useState<string | null>(null);
   const [mitigationActive, setMitigationActive] = useState(false);
-  const [runResult, setRunResult] = useState<ScenarioRunResult | null>(null);
   const [expandedStage, setExpandedStage] = useState<string | null>("S1");
   const [stageResults, setStageResults] = useState<Record<string, StageExecutionResult>>({});
+  const [progressPercent, setProgressPercent] = useState<number>(0);
   const [consoleLogs, setConsoleLogs] = useState<string[]>([
-    "[SYSTEM] ForensiWeb Live Attack Simulator ready.",
-    "[SYSTEM] Target container: http://127.0.0.1:5000 (Scenario WEB-CHAIN-001).",
+    "Ready. Click 'PLAY ALL STAGES' to watch the attack and defense simulation live.",
   ]);
+
+  const isAutoRunningRef = useRef(false);
+  const consoleBottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (isOpen) {
       refreshStatus();
+    } else {
+      handleStopAutoSimulation();
     }
   }, [isOpen]);
+
+  useEffect(() => {
+    consoleBottomRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [consoleLogs]);
 
   const refreshStatus = async () => {
     try {
@@ -107,249 +120,322 @@ export const AttackSimulatorModal: React.FC<AttackSimulatorModalProps> = ({
   const handleToggleMitigation = async () => {
     const nextState = !mitigationActive;
     try {
-      addLog(`[DEFENSE] Requesting mitigation toggle to ${nextState ? "ACTIVE (Defensive Shield ON)" : "DISABLED (Vulnerable)"}...`);
+      addLog(`[SHIELD] Turning Defense Shield: ${nextState ? "ON (Safe Mode)" : "OFF (Vulnerable Mode)"}...`);
       const res = await apiService.toggleSimulationMitigation(nextState);
       setMitigationActive(res.mitigation_active);
-      addLog(`[DEFENSE] ${res.message}`);
+      addLog(`[SHIELD] ${res.message}`);
       await refreshStatus();
     } catch (err: any) {
-      addLog(`[ERROR] Failed to toggle mitigation: ${err.message}`);
+      addLog(`[ERROR] ${err.message}`);
     }
   };
 
   const handleResetLab = async () => {
+    handleStopAutoSimulation();
     try {
-      addLog("[LAB] Resetting laboratory state and clearing log files...");
+      addLog("[RESET] Resetting arena to starting baseline...");
       await apiService.resetSimulationLab();
-      setRunResult(null);
       setStageResults({});
-      addLog("[LAB] Target application baseline state successfully restored.");
+      setProgressPercent(0);
+      setExpandedStage("S1");
+      addLog("[READY] Simulation reset. Ready to play.");
       await refreshStatus();
     } catch (err: any) {
       addLog(`[ERROR] Reset failed: ${err.message}`);
     }
   };
 
+  const handleStopAutoSimulation = () => {
+    if (isAutoRunningRef.current) {
+      isAutoRunningRef.current = false;
+      setIsAutoRunning(false);
+      setCurrentRunningStage(null);
+      addLog("[STOPPED] Simulation paused.");
+    }
+  };
+
   const handleRunSingleStage = async (stageId: string) => {
     try {
       setCurrentRunningStage(stageId);
-      addLog(`[STAGE ${stageId}] Executing stage test against vulnerable target...`);
+      setExpandedStage(stageId);
+      addLog(`[ATTACK] Running Stage ${stageId}...`);
+
       const res = await apiService.runStageSimulation(stageId);
       setStageResults((prev) => ({ ...prev, [stageId]: res }));
 
       if (res.http_response.blocked) {
-        addLog(`[STAGE ${stageId}] DEFENSE BLOCKED: HTTP ${res.http_response.status_code} Forbidden (Input policy rejected traversal).`);
+        addLog(`[DEFENSE] 🛡️ Stage ${stageId} BLOCKED (HTTP ${res.http_response.status_code}) - Threat stopped!`);
       } else {
-        addLog(`[STAGE ${stageId}] COMPROMISED: HTTP ${res.http_response.status_code} - Alert triggered: ${res.detection.rule_name} (${res.detection.mitre_id}).`);
+        addLog(`[ALERT] ⚠️ Stage ${stageId} SUCCEEDED (HTTP ${res.http_response.status_code}) - Detection alert triggered!`);
       }
-      setExpandedStage(stageId);
-      await refreshStatus();
     } catch (err: any) {
-      addLog(`[ERROR] Stage ${stageId} execution failed: ${err.message}`);
+      addLog(`[ERROR] Stage ${stageId} failed: ${err.message}`);
     } finally {
       setCurrentRunningStage(null);
     }
   };
 
-  const handleRunFullScenario = async () => {
-    setIsRunning(true);
-    setRunResult(null);
-    addLog(`=== STARTING FULL CYBER ATTACK SCENARIO (${mitigationActive ? "DEFENSIVE MITIGATION MODE" : "VULNERABLE BASELINE"}) ===`);
+  const handleStartAutoSimulation = async () => {
+    if (isAutoRunning) return;
 
-    try {
-      const result = await apiService.runFullSimulation(mitigationActive);
-      setRunResult(result);
+    setIsAutoRunning(true);
+    isAutoRunningRef.current = true;
+    setStageResults({});
+    setProgressPercent(0);
 
-      // Populate stage results
-      const mappedStages: Record<string, StageExecutionResult> = {};
-      result.stages.forEach((st) => {
-        mappedStages[st.stage_id] = st;
-      });
-      setStageResults(mappedStages);
+    addLog(`[START] Launching 5-stage simulation with Shield: ${mitigationActive ? "ON" : "OFF"}...`);
 
-      result.stages.forEach((st) => {
-        if (st.http_response.blocked) {
-          addLog(`[${st.stage_id}] BLOCKED (HTTP ${st.http_response.status_code}): ${st.stage_name}`);
+    const stages = ["S1", "S2", "S3", "S4", "S5"];
+    for (let i = 0; i < stages.length; i++) {
+      if (!isAutoRunningRef.current) break;
+
+      const stageId = stages[i];
+      setCurrentRunningStage(stageId);
+      setExpandedStage(stageId);
+      setProgressPercent(Math.round(((i + 1) / stages.length) * 100));
+
+      try {
+        const res = await apiService.runStageSimulation(stageId);
+        setStageResults((prev) => ({ ...prev, [stageId]: res }));
+
+        if (res.http_response.blocked) {
+          addLog(`[SHIELD] 🛡️ Stage ${stageId} BLOCKED! The defense shield stopped the attack.`);
         } else {
-          addLog(`[${st.stage_id}] EXECUTED (HTTP ${st.http_response.status_code}): ${st.stage_name} -> ${st.detection.severity.toUpperCase()} ALERT`);
+          addLog(`[BREACH] ⚠️ Stage ${stageId} ALLOWED! Security alert logged.`);
         }
-      });
+      } catch (err: any) {
+        addLog(`[ERROR] Stage ${stageId} failed: ${err.message}`);
+      }
 
-      addLog(`[OUTCOME] Scenario Completed: ${result.overall_outcome} (${result.stages_blocked}/${result.stages_executed} stages blocked).`);
-      addLog(`[SHA-256] Cryptographic audit receipt: ${result.cryptographic_receipt}`);
-      await refreshStatus();
-    } catch (err: any) {
-      addLog(`[CRITICAL ERROR] Scenario run failed: ${err.message}`);
-    } finally {
-      setIsRunning(false);
+      await new Promise((resolve) => setTimeout(resolve, 800));
     }
+
+    if (isAutoRunningRef.current) {
+      addLog("[COMPLETE] Simulation finished!");
+    }
+
+    setIsAutoRunning(false);
+    isAutoRunningRef.current = false;
+    setCurrentRunningStage(null);
   };
+
+  // Metrics
+  const executedCount = Object.keys(stageResults).length;
+  const blockedCount = Object.values(stageResults).filter((r) => r.http_response.blocked).length;
+  const isFinished = executedCount === 5;
+  const isAllBlocked = isFinished && blockedCount >= 4;
 
   return (
     <Modal
       isOpen={isOpen}
-      onClose={onClose}
-      title="Interactive Cyber Attack Simulator & Defense Verification"
-      description="Simulate the complete academic attack chain against the live target, observe real-time detection rule activations, and verify defense mitigation blocking."
-      maxWidth="2xl"
+      onClose={() => {
+        handleStopAutoSimulation();
+        onClose();
+      }}
+      title="Attack & Defense Simulator"
+      description="Watch the hacker attack in real-time and see how the defense shield catches threats."
+      maxWidth="3xl"
     >
-      <div className="space-y-5 text-sm">
-        {/* Lab Target Control & Status Bar */}
-        <div className="p-4 rounded-xl bg-surface-secondary border border-border-default flex flex-wrap items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <div className={`p-2.5 rounded-lg ${labStatus?.connected ? "bg-status-success/15 text-status-success" : "bg-status-critical/15 text-status-critical"}`}>
-              <Globe className="w-5 h-5" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="font-bold text-text-primary text-sm">Lab Target:</span>
-                <span className="font-mono text-xs text-text-secondary">http://127.0.0.1:5000</span>
-                <Badge variant={labStatus?.connected ? "verified" : "critical"} dot>
-                  {labStatus?.connected ? "ONLINE" : "OFFLINE"}
-                </Badge>
-              </div>
-              <p className="text-xs text-text-muted mt-0.5">
-                Scenario WEB-CHAIN-001 • Telemetry: {labStatus?.access_log_lines || 0} access logs, {labStatus?.audit_log_lines || 0} audit records
-              </p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <Button
-              variant={mitigationActive ? "primary" : "secondary"}
-              size="sm"
+      <div className="space-y-4 font-sans select-none">
+        {/* Arcade Control Dashboard */}
+        <div className="p-4 rounded-xl bg-surface-primary border border-border-default space-y-3">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            {/* Big Friendly Shield Toggle Button */}
+            <button
               onClick={handleToggleMitigation}
-              className={`flex items-center gap-2 ${mitigationActive ? "border-status-success text-status-success" : ""}`}
+              className={`flex items-center gap-2.5 px-4 py-2 rounded-xl font-bold text-xs transition-all ${
+                mitigationActive
+                  ? "bg-status-success/20 text-status-success border border-status-success/40 shadow-[0_0_15px_rgba(34,197,94,0.3)] hover:bg-status-success/30"
+                  : "bg-status-high/15 text-status-high border border-status-high/30 hover:bg-status-high/25"
+              }`}
             >
-              {mitigationActive ? <ShieldCheck className="w-4 h-4 text-status-success" /> : <ShieldAlert className="w-4 h-4 text-status-high" />}
-              <span>Shield: {mitigationActive ? "DEFENSE ACTIVE" : "VULNERABLE"}</span>
-            </Button>
-            <Button variant="ghost" size="sm" onClick={handleResetLab} title="Reset Laboratory Logs">
-              <RotateCcw className="w-4 h-4" />
-            </Button>
+              {mitigationActive ? (
+                <>
+                  <ShieldCheck className="w-5 h-5 text-status-success" />
+                  <div className="text-left">
+                    <span className="block font-black">SHIELD IS ON</span>
+                    <span className="text-[10px] opacity-80 font-normal">System is protected</span>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <ShieldOff className="w-5 h-5 text-status-high" />
+                  <div className="text-left">
+                    <span className="block font-black">SHIELD IS OFF</span>
+                    <span className="text-[10px] opacity-80 font-normal">Vulnerable (Click to enable)</span>
+                  </div>
+                </>
+              )}
+            </button>
+
+            {/* Big Play / Stop / Reset Buttons */}
+            <div className="flex items-center gap-2">
+              {isAutoRunning ? (
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={handleStopAutoSimulation}
+                  className="flex items-center gap-1.5 font-bold"
+                >
+                  <Square className="w-4 h-4 fill-current" />
+                  <span>Stop</span>
+                </Button>
+              ) : (
+                <Button
+                  variant="primary"
+                  size="sm"
+                  onClick={handleStartAutoSimulation}
+                  className="flex items-center gap-1.5 bg-gradient-to-r from-accent-blue via-accent-cyan to-accent-blue text-slate-950 font-black shadow-glow-cyan hover:scale-[1.02] active:scale-[0.98] transition-all px-4 py-2"
+                >
+                  <Play className="w-4 h-4 fill-current text-slate-950" />
+                  <span>PLAY ALL STAGES</span>
+                </Button>
+              )}
+
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={handleResetLab}
+                disabled={isAutoRunning}
+                className="flex items-center gap-1 text-slate-300"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+                <span>Reset</span>
+              </Button>
+            </div>
+          </div>
+
+          {/* Progress Bar (Level 1 to 5) */}
+          <div className="space-y-1 pt-1">
+            <div className="flex justify-between text-xs text-text-muted">
+              <span className="font-semibold text-text-primary">
+                {isAutoRunning
+                  ? `Simulating Stage ${currentRunningStage}...`
+                  : executedCount > 0
+                  ? `Completed ${executedCount} of 5 Stages`
+                  : "Ready to Start"}
+              </span>
+              <span className="font-mono font-bold text-accent-cyan">{progressPercent}%</span>
+            </div>
+            <div className="h-2 w-full bg-surface-secondary rounded-full overflow-hidden border border-border-default">
+              <div
+                className="h-full bg-gradient-to-r from-accent-blue via-accent-cyan to-status-success transition-all duration-300"
+                style={{ width: `${progressPercent}%` }}
+              />
+            </div>
           </div>
         </div>
 
-        {/* Primary Action Buttons */}
-        <div className="flex flex-wrap items-center justify-between gap-3 p-4 rounded-xl bg-gradient-to-r from-accent-blue/10 via-surface-primary to-accent-indigo/10 border border-border-default">
-          <div>
-            <h4 className="font-bold text-text-primary text-sm flex items-center gap-2">
-              <Flame className="w-4 h-4 text-status-high" /> Complete 5-Stage Kill-Chain Execution
-            </h4>
-            <p className="text-xs text-text-muted mt-0.5">
-              Automated execution of LFI → Log Poisoning → RCE → Web Shell → Privilege Escalation.
-            </p>
-          </div>
-
-          <Button
-            variant="primary"
-            onClick={handleRunFullScenario}
-            disabled={isRunning}
-            className="flex items-center gap-2 px-5 py-2.5 bg-accent-blue hover:bg-accent-blue-light text-white font-semibold shadow-glow-blue transition-all"
-          >
-            {isRunning ? (
-              <>
-                <Cpu className="w-4 h-4 animate-spin" />
-                <span>Simulating Attack Chain...</span>
-              </>
-            ) : (
-              <>
-                <Play className="w-4 h-4 fill-current" />
-                <span>Run Full Attack Scenario</span>
-              </>
-            )}
-          </Button>
-        </div>
-
-        {/* Outcome Card when Full Scenario Completed */}
-        {runResult && (
+        {/* Victory or Warning Game Banner */}
+        {isFinished && (
           <div
-            className={`p-4 rounded-xl border animate-fade-in ${
-              runResult.overall_outcome === "BLOCKED"
-                ? "bg-status-success/10 border-status-success/40 text-text-primary"
-                : "bg-status-critical/10 border-status-critical/40 text-text-primary"
+            className={`p-4 rounded-xl border animate-fade-in flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
+              isAllBlocked
+                ? "bg-status-success/15 border-status-success/40 text-text-primary"
+                : "bg-status-critical/15 border-status-critical/40 text-text-primary"
             }`}
           >
-            <div className="flex items-start justify-between gap-4">
-              <div className="flex items-start gap-3">
-                {runResult.overall_outcome === "BLOCKED" ? (
-                  <ShieldCheck className="w-6 h-6 text-status-success shrink-0 mt-0.5" />
-                ) : (
-                  <AlertOctagon className="w-6 h-6 text-status-critical shrink-0 mt-0.5" />
-                )}
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className="font-bold text-base">
-                      {runResult.overall_outcome === "BLOCKED" ? "DEFENSES EFFECTIVE (ATTACK BLOCKED)" : "SYSTEM COMPROMISED (FULL CHAIN EXECUTED)"}
-                    </span>
-                    <Badge variant={runResult.overall_outcome === "BLOCKED" ? "verified" : "critical"}>
-                      {runResult.stages_blocked}/{runResult.stages_executed} Stages Blocked
-                    </Badge>
-                  </div>
-                  <p className="text-xs mt-1 text-text-secondary">{runResult.summary}</p>
-                  <p className="text-[11px] font-mono text-text-muted mt-2">
-                    SHA-256 Verification Receipt: <span className="text-accent-cyan">{runResult.cryptographic_receipt}</span>
-                  </p>
-                </div>
+            <div className="flex items-center gap-3">
+              {isAllBlocked ? (
+                <ShieldCheck className="w-8 h-8 text-status-success shrink-0" />
+              ) : (
+                <Flame className="w-8 h-8 text-status-critical shrink-0" />
+              )}
+              <div>
+                <h4 className="font-bold text-sm">
+                  {isAllBlocked ? "VICTORY: THREATS BLOCKED!" : "ALERT: ATTACK COMPLETED!"}
+                </h4>
+                <p className="text-xs text-text-secondary mt-0.5">
+                  {isAllBlocked
+                    ? "The security shield successfully protected the system from all attacks."
+                    : "The attacker gained root power because the shield was off. Turn Shield ON to test protection!"}
+                </p>
               </div>
+            </div>
 
-              <div className="flex flex-col gap-2 shrink-0">
-                {onNavigateToTimeline && (
-                  <Button variant="secondary" size="sm" onClick={() => { onClose(); onNavigateToTimeline(); }}>
-                    View in Timeline
-                  </Button>
-                )}
-                {onNavigateToReports && (
-                  <Button variant="secondary" size="sm" onClick={() => { onClose(); onNavigateToReports(); }}>
-                    Generate Report
-                  </Button>
-                )}
-              </div>
+            <div className="flex items-center gap-2 shrink-0">
+              {onNavigateToTimeline && (
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => {
+                    onClose();
+                    onNavigateToTimeline();
+                  }}
+                  className="text-xs"
+                >
+                  View Timeline
+                </Button>
+              )}
+              {onNavigateToReports && (
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => {
+                    onClose();
+                    onNavigateToReports();
+                  }}
+                  className="text-xs"
+                >
+                  View Report
+                </Button>
+              )}
             </div>
           </div>
         )}
 
-        {/* Interactive Attack Stages List */}
-        <div className="space-y-2">
-          <div className="flex items-center justify-between text-xs font-semibold text-text-muted px-1">
-            <span>ATTACK CHAIN STAGES (INTERACTIVE DRILLDOWN)</span>
-            <span>CLICK TO TEST INDIVIDUALLY</span>
-          </div>
-
-          {DEFAULT_STAGES.map((stage) => {
+        {/* 5 Gamified Interactive Stage Cards */}
+        <div className="space-y-2.5">
+          {GAME_STAGES.map((stage) => {
             const isExpanded = expandedStage === stage.id;
             const res = stageResults[stage.id];
-            const isStageExecuting = currentRunningStage === stage.id;
+            const isRunning = currentRunningStage === stage.id;
 
             return (
               <div
                 key={stage.id}
-                className={`rounded-xl border transition-all duration-200 overflow-hidden ${
-                  isExpanded ? "border-accent-blue/50 bg-surface-primary" : "border-border-default bg-surface-primary hover:border-border-active"
+                className={`rounded-xl border transition-all overflow-hidden ${
+                  isRunning
+                    ? "border-accent-cyan ring-2 ring-accent-cyan/30 bg-surface-primary"
+                    : res?.http_response.blocked
+                    ? "border-status-success/40 bg-surface-primary"
+                    : res
+                    ? "border-status-critical/40 bg-surface-primary"
+                    : "border-border-default bg-surface-primary hover:border-border-active"
                 }`}
               >
-                {/* Header Row */}
+                {/* Stage Header Line */}
                 <div
-                  className="p-3.5 flex items-center justify-between gap-3 cursor-pointer select-none"
+                  className="p-3 flex items-center justify-between gap-3 cursor-pointer select-none"
                   onClick={() => setExpandedStage(isExpanded ? null : stage.id)}
                 >
                   <div className="flex items-center gap-3 min-w-0">
-                    <span className="w-8 h-8 rounded-lg bg-surface-secondary border border-border-default flex items-center justify-center font-mono font-bold text-xs text-accent-blue">
-                      {stage.id}
-                    </span>
-                    <div className="truncate">
-                      <div className="flex items-center gap-2">
-                        <span className="font-semibold text-text-primary text-xs">{stage.name}</span>
-                        <Badge variant="informational" className="text-[10px]">
-                          MITRE {stage.mitre}
-                        </Badge>
+                    <span className="text-xl shrink-0">{stage.icon}</span>
+
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="font-bold text-xs sm:text-sm text-text-primary">
+                          {stage.title}
+                        </span>
+
+                        {/* Status Badges */}
+                        {isRunning && (
+                          <Badge variant="verified" className="text-[10px] animate-pulse">
+                            TESTING...
+                          </Badge>
+                        )}
                         {res && (
-                          <Badge variant={res.http_response.blocked ? "verified" : "critical"} className="text-[10px]">
-                            {res.http_response.blocked ? "BLOCKED 403" : `HTTP ${res.http_response.status_code}`}
+                          <Badge
+                            variant={res.http_response.blocked ? "verified" : "critical"}
+                            className="text-[10px]"
+                          >
+                            {res.http_response.blocked ? "🛡️ BLOCKED" : "⚠️ SUCCEEDED"}
                           </Badge>
                         )}
                       </div>
-                      <p className="text-[11px] text-text-muted truncate mt-0.5">{stage.description}</p>
+                      <p className="text-[11px] text-text-muted truncate mt-0.5">
+                        {stage.hackerMove}
+                      </p>
                     </div>
                   </div>
 
@@ -357,64 +443,71 @@ export const AttackSimulatorModal: React.FC<AttackSimulatorModalProps> = ({
                     <Button
                       variant="secondary"
                       size="sm"
-                      disabled={isStageExecuting || isRunning}
+                      disabled={isRunning || isAutoRunning}
                       onClick={(e) => {
                         e.stopPropagation();
                         handleRunSingleStage(stage.id);
                       }}
-                      className="text-xs flex items-center gap-1.5"
+                      className="text-xs py-1 px-2.5"
                     >
-                      {isStageExecuting ? <Cpu className="w-3 h-3 animate-spin" /> : <Play className="w-3 h-3 fill-current text-accent-blue" />}
-                      <span>Execute</span>
+                      {isRunning ? (
+                        <Cpu className="w-3.5 h-3.5 animate-spin text-accent-cyan" />
+                      ) : (
+                        <Play className="w-3 h-3 fill-current text-accent-cyan" />
+                      )}
+                      <span className="hidden sm:inline">Test</span>
                     </Button>
-                    {isExpanded ? <ChevronUp className="w-4 h-4 text-text-muted" /> : <ChevronDown className="w-4 h-4 text-text-muted" />}
+
+                    {isExpanded ? (
+                      <ChevronUp className="w-4 h-4 text-text-muted" />
+                    ) : (
+                      <ChevronDown className="w-4 h-4 text-text-muted" />
+                    )}
                   </div>
                 </div>
 
-                {/* Expanded Details */}
+                {/* Expanded Side-by-Side: Attacker vs Defender */}
                 {isExpanded && (
-                  <div className="px-4 pb-4 pt-1 border-t border-border-default/60 bg-surface-secondary/40 space-y-3">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-2">
-                      <div>
-                        <span className="text-[10px] font-mono text-text-muted uppercase">Target Interaction:</span>
-                        <p className="text-xs font-mono bg-bg-primary p-2 rounded border border-border-default text-text-secondary mt-1 break-all">
-                          {stage.endpoint}
+                  <div className="p-3.5 border-t border-border-default/60 bg-surface-secondary/40 space-y-2.5">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                      {/* Left: Hacker Move */}
+                      <div className="p-3 rounded-lg bg-surface-primary border border-border-default space-y-1.5">
+                        <span className="font-bold text-status-critical flex items-center gap-1.5 text-xs">
+                          <Flame className="w-3.5 h-3.5" />
+                          Hacker Action
+                        </span>
+                        <p className="text-text-secondary text-xs leading-relaxed">
+                          {stage.hackerMove}
                         </p>
+                        <div className="pt-1 text-[11px] font-mono text-text-muted truncate">
+                          Target: {stage.endpoint}
+                        </div>
                       </div>
 
-                      <div>
-                        <span className="text-[10px] font-mono text-text-muted uppercase">Forensic Attribution:</span>
-                        <div className="mt-1 flex items-center gap-2 text-xs">
-                          <Badge variant={stage.severity === "critical" ? "critical" : stage.severity === "high" ? "high" : "medium"}>
-                            {stage.severity.toUpperCase()} SEVERITY
-                          </Badge>
-                          <span className="text-text-muted">• MITRE ATT&CK {stage.mitre}</span>
+                      {/* Right: Security Shield */}
+                      <div className="p-3 rounded-lg bg-surface-primary border border-border-default space-y-1.5">
+                        <span className="font-bold text-accent-cyan flex items-center gap-1.5 text-xs">
+                          <ShieldCheck className="w-3.5 h-3.5" />
+                          Security Shield
+                        </span>
+                        <p className="text-text-secondary text-xs leading-relaxed">
+                          {stage.systemDefense}
+                        </p>
+                        <div className="pt-1 text-[11px] font-mono">
+                          {res?.http_response.blocked ? (
+                            <span className="text-status-success font-bold">
+                              Result: Blocked with HTTP {res.http_response.status_code}
+                            </span>
+                          ) : res ? (
+                            <span className="text-status-critical font-bold">
+                              Result: Caught in logs (Alert fired)
+                            </span>
+                          ) : (
+                            <span className="text-text-muted">Result: Waiting for test</span>
+                          )}
                         </div>
                       </div>
                     </div>
-
-                    {res && (
-                      <div className="p-3 rounded-lg bg-bg-primary border border-border-default space-y-2 animate-fade-in">
-                        <div className="flex items-center justify-between text-xs">
-                          <span className="font-semibold text-text-primary flex items-center gap-1.5">
-                            {res.http_response.blocked ? (
-                              <ShieldCheck className="w-4 h-4 text-status-success" />
-                            ) : (
-                              <ShieldAlert className="w-4 h-4 text-status-critical" />
-                            )}
-                            {res.detection.rule_name}
-                          </span>
-                          <span className="font-mono text-[11px] text-text-muted">Status: HTTP {res.http_response.status_code}</span>
-                        </div>
-
-                        <p className="text-xs text-text-secondary">{res.detection.explanation}</p>
-
-                        <div className="p-2 rounded bg-surface-primary border border-border-default text-xs">
-                          <span className="font-semibold text-accent-cyan">Recommended Mitigation: </span>
-                          <span className="text-text-muted">{res.remediation}</span>
-                        </div>
-                      </div>
-                    )}
                   </div>
                 )}
               </div>
@@ -422,38 +515,27 @@ export const AttackSimulatorModal: React.FC<AttackSimulatorModalProps> = ({
           })}
         </div>
 
-        {/* Live Simulator Console Output */}
-        <div className="rounded-xl border border-border-default bg-bg-primary overflow-hidden">
-          <div className="px-3.5 py-2 bg-surface-secondary border-b border-border-default flex items-center justify-between text-xs">
-            <div className="flex items-center gap-2 font-mono text-text-muted">
-              <Terminal className="w-3.5 h-3.5 text-accent-cyan" />
-              <span>LIVE TELEMETRY STREAM</span>
-            </div>
-            <button
-              onClick={() => setConsoleLogs(["[SYSTEM] Log output cleared."])}
-              className="text-[10px] text-text-muted hover:text-text-primary transition-colors font-mono"
+        {/* Streamlined Live Console — Adaptive to White & Dark Theme */}
+        <div className="p-3 rounded-xl bg-surface-secondary border border-border-default font-mono text-[11px] space-y-1 max-h-28 overflow-y-auto shadow-inner">
+          <div className="text-[10px] text-text-muted uppercase flex items-center gap-1 mb-1 font-semibold">
+            <Zap className="w-3 h-3 text-accent-cyan" />
+            <span>Live Telemetry Stream</span>
+          </div>
+          {consoleLogs.map((log, idx) => (
+            <div
+              key={idx}
+              className={
+                log.includes("BLOCKED")
+                  ? "text-status-success font-semibold"
+                  : log.includes("ALLOWED") || log.includes("BREACH")
+                  ? "text-status-critical font-semibold"
+                  : "text-text-secondary"
+              }
             >
-              Clear Console
-            </button>
-          </div>
-          <div className="p-3 font-mono text-xs text-text-muted max-h-40 overflow-y-auto space-y-1">
-            {consoleLogs.map((log, i) => (
-              <div
-                key={i}
-                className={
-                  log.includes("COMPROMISED") || log.includes("CRITICAL")
-                    ? "text-status-critical"
-                    : log.includes("BLOCKED") || log.includes("DEFENSE")
-                    ? "text-status-success"
-                    : log.includes("STARTING") || log.includes("OUTCOME")
-                    ? "text-accent-cyan font-bold"
-                    : "text-text-secondary"
-                }
-              >
-                {log}
-              </div>
-            ))}
-          </div>
+              {log}
+            </div>
+          ))}
+          <div ref={consoleBottomRef} />
         </div>
       </div>
     </Modal>

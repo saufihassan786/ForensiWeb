@@ -1,4 +1,4 @@
-﻿"""Simulation Service for ForensiWeb (Live Attack Scenarios and Detection)."""
+"""Simulation Service for ForensiWeb (Live Attack Scenarios and Detection)."""
 
 from __future__ import annotations
 
@@ -105,7 +105,8 @@ class SimulationService:
         body: Optional[str] = None,
         timeout: float = 3.0,
     ) -> Dict[str, Any]:
-        url = f"{self.target_url}{path}"
+        encoded_path = urllib.parse.quote(path, safe="/?&=;:+%")
+        url = f"{self.target_url}{encoded_path}"
         req_headers = {"User-Agent": "ForensiWeb-Sim/1.0"}
         if headers:
             req_headers.update(headers)

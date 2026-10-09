@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Bell, Command, Moon, Search, Sun, User, Zap } from "lucide-react";
+import { Bell, Command, Lock, Moon, Search, Sun, User, Zap } from "lucide-react";
 import { Badge } from "@/components/common/Badge";
 import { useTheme } from "@/hooks/useTheme";
 
@@ -9,6 +9,8 @@ export interface TopNavProps {
   onOpenSearch?: () => void;
   onOpenSimulator?: () => void;
   isLabOnline?: boolean;
+  onLogout?: () => void;
+  onNavigateOverview?: () => void;
 }
 
 export const TopNav: React.FC<TopNavProps> = ({
@@ -17,6 +19,8 @@ export const TopNav: React.FC<TopNavProps> = ({
   onOpenSearch,
   onOpenSimulator,
   isLabOnline = true,
+  onLogout,
+  onNavigateOverview,
 }) => {
   const { theme, toggleTheme } = useTheme();
   const [showNotifications, setShowNotifications] = useState(false);
@@ -25,8 +29,12 @@ export const TopNav: React.FC<TopNavProps> = ({
     <header className="h-16 px-6 bg-bg-secondary/90 backdrop-blur-md border-b border-border-default sticky top-0 z-30 flex items-center justify-between gap-4 transition-colors duration-200">
       {/* Page Title & Case Context */}
       <div className="flex items-center gap-4 min-w-0">
-        <div>
-          <h1 className="text-base font-bold text-text-primary capitalize tracking-tight flex items-center gap-2">
+        <div
+          onClick={onNavigateOverview}
+          className={onNavigateOverview ? "cursor-pointer group" : ""}
+          title={onNavigateOverview ? "Jump to Overview Dashboard" : undefined}
+        >
+          <h1 className="text-base font-bold text-text-primary group-hover:text-accent-cyan transition-colors capitalize tracking-tight flex items-center gap-2">
             {pageTitle}
           </h1>
         </div>
@@ -123,7 +131,7 @@ export const TopNav: React.FC<TopNavProps> = ({
           )}
         </div>
 
-        {/* Analyst Profile Pill */}
+        {/* Analyst Profile Pill & Terminal Lock */}
         <div className="flex items-center gap-2 pl-2 border-l border-border-default">
           <div className="w-8 h-8 rounded-full bg-accent-blue/15 border border-accent-blue/30 flex items-center justify-center text-accent-cyan shadow-sm">
             <User className="w-4 h-4 text-accent-cyan" />
@@ -136,6 +144,18 @@ export const TopNav: React.FC<TopNavProps> = ({
               SEC-OPS-01
             </span>
           </div>
+
+          {onLogout && (
+            <button
+              onClick={onLogout}
+              className="p-1.5 rounded-lg text-text-muted hover:text-status-critical hover:bg-surface-hover border border-transparent hover:border-border-default transition-colors text-xs font-mono flex items-center gap-1.5 ml-1"
+              title="Lock Terminal & Return to Login Screen"
+              aria-label="Lock terminal"
+            >
+              <Lock className="w-3.5 h-3.5 text-text-muted hover:text-status-critical transition-colors" />
+              <span className="hidden xl:inline text-[11px] font-mono">Lock</span>
+            </button>
+          )}
         </div>
       </div>
     </header>

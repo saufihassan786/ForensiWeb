@@ -134,11 +134,11 @@ export const MitigationPage: React.FC<MitigationPageProps> = ({ onOpenSimulator 
               </span>
             )}
             <h1 className="text-xl font-bold text-text-primary tracking-wide">
-              Mitigation & Verification Center
+              Defense Shield & Mitigations
             </h1>
           </div>
-          <p className="text-xs text-text-muted mt-1.5">
-            Demonstrating before-and-after attack vector neutralization, defensive hardening, and cryptographic remediation proof.
+          <p className="text-xs text-text-muted mt-1">
+            Compare vulnerable code vs secure defenses across all 5 attack stages.
           </p>
         </div>
 

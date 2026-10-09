@@ -11,6 +11,8 @@ import { EmptyState } from "../components/states/EmptyState";
 import { ErrorState } from "../components/states/ErrorState";
 import { Sidebar } from "../layouts/Sidebar";
 import { TopNav } from "../layouts/TopNav";
+import { BrandLogo } from "../components/common/BrandLogo";
+import { LoginPage } from "../pages/LoginPage";
 
 describe("Core UI Components (PHASE-03-F04)", () => {
   it("renders Button with variant styles and handles click", () => {
@@ -132,3 +134,51 @@ describe("Navigation Layouts (PHASE-03-F06, F07)", () => {
     expect(screen.getByText("CASE-001")).toBeDefined();
   });
 });
+
+describe("Brand Identity & Thriller Authentication (PHASE-04)", () => {
+  it("renders BrandLogo with ForensiWeb typography and handles click navigation", () => {
+    const handleNavigate = vi.fn();
+    render(
+      <BrandLogo
+        size="md"
+        showText={true}
+        interactive={true}
+        onClick={handleNavigate}
+      />
+    );
+
+    expect(screen.getByText("Forensi")).toBeDefined();
+    expect(screen.getByText("Web")).toBeDefined();
+
+    const logoBtn = screen.getByRole("button", { name: /forensiweb command center/i });
+    fireEvent.click(logoBtn);
+    expect(handleNavigate).toHaveBeenCalledTimes(1);
+  });
+
+  it("renders BrandLogo in vector mode without errors", () => {
+    render(<BrandLogo variant="vector" size="lg" showText={true} />);
+    expect(screen.getByText("Forensi")).toBeDefined();
+    expect(screen.getByText("Web")).toBeDefined();
+  });
+
+  it("renders LoginPage with clean status banner and authentication tabs", () => {
+    const handleLogin = vi.fn();
+    render(<LoginPage onLoginSuccess={handleLogin} />);
+
+    expect(screen.getByText(/SYSTEM ONLINE/i)).toBeDefined();
+    expect(screen.getAllByText(/PASSWORD/i).length).toBeGreaterThan(0);
+    expect(screen.getByText(/FINGERPRINT/i)).toBeDefined();
+    expect(screen.getByText(/SIGN IN/i)).toBeDefined();
+  });
+
+  it("switches to Biometric mode and handles click", () => {
+    const handleLogin = vi.fn();
+    render(<LoginPage onLoginSuccess={handleLogin} />);
+
+    const bioTab = screen.getByRole("button", { name: /fingerprint/i });
+    fireEvent.click(bioTab);
+
+    expect(screen.getByText(/TAP TO SCAN/i)).toBeDefined();
+  });
+});
+

@@ -210,10 +210,10 @@ export const ReportsPage: React.FC = () => {
         <div>
           <h1 className="text-xl font-bold text-text-primary tracking-wide flex items-center gap-2">
             <FileText className="w-5 h-5 text-accent-cyan" />
-            Forensic Incident Reporting & Document Export
+            Investigation Reports
           </h1>
-          <p className="text-xs text-text-muted mt-1">
-            Academic-grade, evidence-backed reports with cryptographic integrity proofs and chain-of-custody.
+          <p className="text-xs text-text-muted mt-0.5">
+            Export forensic summaries and evidence reports.
           </p>
         </div>
         <div className="flex items-center gap-3">

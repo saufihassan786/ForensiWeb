@@ -152,6 +152,57 @@ body {
   animation: alertBlink 1.5s infinite;
 }
 
+@keyframes scanline {
+  0% {
+    top: 0%;
+    opacity: 0.8;
+  }
+  50% {
+    opacity: 1;
+  }
+  100% {
+    top: 100%;
+    opacity: 0.2;
+  }
+}
+
+@keyframes radarSpin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes cyberHologram {
+  0%, 100% {
+    opacity: 0.85;
+    filter: drop-shadow(0 0 10px rgba(34, 211, 238, 0.4));
+  }
+  50% {
+    opacity: 1;
+    filter: drop-shadow(0 0 25px rgba(34, 211, 238, 0.8));
+  }
+}
+
+.animate-scanline {
+  animation: scanline 2.2s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+.animate-radar {
+  animation: radarSpin 6s linear infinite;
+}
+
+.animate-cyber-hologram {
+  animation: cyberHologram 3s ease-in-out infinite;
+}
+
+.font-brand {
+  font-family: 'Outfit', 'Plus Jakarta Sans', 'Inter', sans-serif;
+}
+
+
 /* Custom Scrollbar */
 ::-webkit-scrollbar {
   width: 6px;

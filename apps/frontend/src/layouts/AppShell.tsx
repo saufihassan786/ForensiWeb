@@ -12,6 +12,7 @@ export interface AppShellProps {
   pageTitle?: string;
   activeCase?: string;
   onOpenSimulator?: () => void;
+  onLogout?: () => void;
 }
 
 export const AppShell: React.FC<AppShellProps> = ({
@@ -21,6 +22,7 @@ export const AppShell: React.FC<AppShellProps> = ({
   pageTitle = "Investigation Command Center",
   activeCase,
   onOpenSimulator,
+  onLogout,
 }) => {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
@@ -89,6 +91,8 @@ export const AppShell: React.FC<AppShellProps> = ({
           activeCase={activeCase}
           onOpenSearch={() => setIsSearchOpen(true)}
           onOpenSimulator={onOpenSimulator}
+          onLogout={onLogout}
+          onNavigateOverview={() => onSelectTab("overview")}
         />
 
         <main id="main-content" className="flex-1 p-6 max-w-7xl w-full mx-auto cyber-grid animate-fade-in">
